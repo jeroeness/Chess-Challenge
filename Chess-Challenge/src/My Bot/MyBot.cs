@@ -1,9 +1,4 @@
 ﻿using ChessChallenge.API;
-using ChessChallenge.API;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System;
-using System.Linq;
-using static System.Formats.Asn1.AsnWriter;
 
 public class MyBot : IChessBot
 {
