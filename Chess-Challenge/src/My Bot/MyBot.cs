@@ -26,17 +26,17 @@ public class MyBot : IChessBot
         if (timer.MillisecondsRemaining >= 59_900)
         {
             ThinkingTime = 0;
-            VariableNodes = (board.PlyCount <= 1) ? 10_000 : 40_000;
+            VariableNodes = (board.PlyCount <= 1) ? 400_000 : 500_000;
         }
         
         int nodes = 0;
-        VariableNodes += ThinkingTime < 2200 -Math.Min(2000, Math.Max(0, (30_000-timer.MillisecondsRemaining)/5)) ? VariableNodes * .2f : VariableNodes * -.3f;
+        VariableNodes += ThinkingTime < 2200 -Math.Min(2000, Math.Max(0, (30_000-timer.MillisecondsRemaining)/8)) ? VariableNodes * .08f : VariableNodes * -.2f;
         nodes = 1_000 + (int)VariableNodes;
         Move bestMove = board.GetLegalMoves()[0];
         //int nodes = 100_000;
-        float score = Negamax(ref board, nodes, 0, new float[2] { -float.MaxValue, -float.MaxValue }, true, board.IsWhiteToMove, ref bestMove);
+        float score = Negamax(ref board, nodes, 0, float.MinValue, float.MaxValue , true, board.IsWhiteToMove, ref bestMove);
         ThinkingTime = timer.MillisecondsElapsedThisTurn;
-        Console.WriteLine($"thinktime {(float)ThinkingTime/1000.0} nodes {nodes} score {score}");
+        Console.WriteLine($"thinktime {(float)ThinkingTime/1000.0} nodes {nodes} score {score} Target think time {2200 - Math.Min(2000, Math.Max(0, (30_000 - timer.MillisecondsRemaining) / 8))}");
         return bestMove;
     }
 
@@ -52,14 +52,14 @@ public class MyBot : IChessBot
         return moveEvals;
     }
 
-    private float Negamax(ref Board board, int nodes, int depth, float[] ab, bool isPlayer, bool playAsWhite, ref Move outBestMove)
+    private float Negamax(ref Board board, int nodes, int depth, float a, float b, bool isPlayer, bool playAsWhite, ref Move outBestMove)
     {
         Move[] moves = board.GetLegalMoves();
         float best = float.MinValue;
 
         if (nodes == 0 || moves.Length == 0)
         {
-            float h = heuristic(board, playAsWhite, isPlayer);
+            float h = heuristic(board, playAsWhite, depth);
             return isPlayer ? h : -h;
         }
         MoveEval[] sortedMoveEvals = GetMoveEvals(moves).OrderByDescending(moveEval => moveEval.Eval).ToArray();
@@ -71,16 +71,20 @@ public class MyBot : IChessBot
             Move move = moveEval.Move;
             board.MakeMove(move);
             Move bestMove = new Move();
-            float score = -Negamax(ref board, nextNodes, depth+1, ab, !isPlayer, playAsWhite, ref bestMove);
+            float score = -Negamax(ref board, nextNodes, depth+1, -b, -a, !isPlayer, playAsWhite, ref bestMove);
             board.UndoMove(move);
             if (score > best)
             {
                 outBestMove = move;
                 best = score;
             }
-            if (best > ab[isPlayer ? 1 : 0])
+            if (best > a)
             {
-                ab[isPlayer ? 1: 0] = best;
+                a = best;
+            }
+            if (a >= b)
+            {
+                break;
             }
         }
         if (depth == 1)
@@ -90,12 +94,14 @@ public class MyBot : IChessBot
         return best;
     }
 
-    private float heuristic(Board board, bool playAsWhite, bool isPlayer)
+    private float heuristic(Board board, bool playAsWhite, int depth)
     {
-        if (board.IsInCheckmate()) {
-            return 999999;
+       
+        float score = 0; 
+        if (board.IsInCheckmate())
+        {
+            score += (100-depth)*100_000;
         }
-        float score = 0;
         bool[] colors = new bool[2] { playAsWhite, !playAsWhite };
         foreach (bool color in colors) {
             float side = playAsWhite == color ? 1 : -1;
@@ -110,14 +116,16 @@ public class MyBot : IChessBot
             /// Knight
             foreach (Piece knight in board.GetPieceList(PieceType.Knight, color))
             {
-                score += (316 + ((4f - (Math.Abs(knight.Square.Rank - 3.5f)))*.6f + .5f*(4f - (Math.Abs(knight.Square.File - 3.5f))))) * side;
+                score += (316 + ((4f - (Math.Abs(knight.Square.Rank - 3.5f))) + (4f - (Math.Abs(knight.Square.File - 3.5f))))) * side;
             }
 
             /// King
             Piece king = board.GetPieceList(PieceType.King, color).First();
+            
             score += ((color ? -king.Square.Rank : (-7 + king.Square.Rank))) * side;
             score += (Math.Abs(king.Square.File - 3.5f)) * side;
             score += board.HasKingsideCastleRight(color) || board.HasQueensideCastleRight(color) ? 3 : 0;
+            
 
             /// Bischop
             foreach (Piece bischop in board.GetPieceList(PieceType.Bishop, color))
