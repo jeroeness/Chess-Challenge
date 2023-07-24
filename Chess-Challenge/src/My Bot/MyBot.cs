@@ -19,24 +19,31 @@ public class MyBot : IChessBot
 {
     static int ThinkingTime = 0;
     static float VariableNodes = 10_000;
+    static ulong[] boards = new ulong[20];
+    static int boardIndex = 0;
 
     public Move Think(Board board, Timer timer)
     {
-        Console.WriteLine(timer.MillisecondsRemaining);
         if (timer.MillisecondsRemaining >= 59_900)
         {
+            Console.WriteLine("RESET");
+            boards = new ulong[20];
+            boardIndex = 0;
             ThinkingTime = 0;
-            VariableNodes = (board.PlyCount <= 1) ? 400_000 : 500_000;
+            VariableNodes = board.PlyCount <= 1 ? 500_000 : 800_000;
+            //VariableNodes = (board.PlyCount <= 1) ? 4_000 : 5_000;
         }
         
         int nodes = 0;
-        VariableNodes += ThinkingTime < 2200 -Math.Min(2000, Math.Max(0, (30_000-timer.MillisecondsRemaining)/8)) ? VariableNodes * .08f : VariableNodes * -.2f;
+        VariableNodes += ThinkingTime < 1800 -Math.Min(1600, Math.Max(0, (30_000-timer.MillisecondsRemaining)/8)) ? VariableNodes * .05f : VariableNodes * -.3f;
         nodes = 1_000 + (int)VariableNodes;
         Move bestMove = board.GetLegalMoves()[0];
         //int nodes = 100_000;
+        boards[(boardIndex++) % 20] = board.ZobristKey;
         float score = Negamax(ref board, nodes, 0, float.MinValue, float.MaxValue , true, board.IsWhiteToMove, ref bestMove);
         ThinkingTime = timer.MillisecondsElapsedThisTurn;
-        Console.WriteLine($"thinktime {(float)ThinkingTime/1000.0} nodes {nodes} score {score} Target think time {2200 - Math.Min(2000, Math.Max(0, (30_000 - timer.MillisecondsRemaining) / 8))}");
+        String color = board.IsWhiteToMove ? "WHITE" : "BLACK";
+        Console.WriteLine($"{color} think {(float)ThinkingTime/1000.0}s \tnodes {nodes} \tscore {score}");
         return bestMove;
     }
 
@@ -59,19 +66,34 @@ public class MyBot : IChessBot
 
         if (nodes == 0 || moves.Length == 0)
         {
-            float h = heuristic(board, playAsWhite, depth);
+            float h = heuristic(board, playAsWhite, depth, isPlayer);
             return isPlayer ? h : -h;
+        }
+        if (isPlayer && board.PlyCount <= 2 && depth == 0)
+        {
+            moves = moves.Select(moves => moves).Where(move => move.MovePieceType == PieceType.Pawn).ToArray();
         }
         MoveEval[] sortedMoveEvals = GetMoveEvals(moves).OrderByDescending(moveEval => moveEval.Eval).ToArray();
 
 
         int nextNodes =(int)((float)nodes / (float)moves.Length);
+        bool repeat = (depth == 2 && boards.Contains(board.ZobristKey));
+        if (depth == 2 && boards.Contains(board.ZobristKey))
+        {
+            Console.WriteLine($"REPEAT {isPlayer}");
+        }
         foreach (MoveEval moveEval in sortedMoveEvals)
         {
             Move move = moveEval.Move;
             board.MakeMove(move);
             Move bestMove = new Move();
             float score = -Negamax(ref board, nextNodes, depth+1, -b, -a, !isPlayer, playAsWhite, ref bestMove);
+
+            if (repeat && score > 99)
+            {
+                score *= .5f;
+            }
+
             board.UndoMove(move);
             if (score > best)
             {
@@ -87,75 +109,95 @@ public class MyBot : IChessBot
                 break;
             }
         }
-        if (depth == 1)
+        if (depth <= 2)
         {
-            //Console.WriteLine($"{outBestMove} {best} {isPlayer}");
+            //String color = playAsWhite ? "WHITE" : "BLACK";
+            //Console.WriteLine($"{color} {depth} {outBestMove} {best} {a} {b} {isPlayer}");
         }
         return best;
     }
 
-    private float heuristic(Board board, bool playAsWhite, int depth)
+    private float heuristic(Board board, bool playAsWhite, int depth, bool isPlayer)
     {
        
         float score = 0; 
         if (board.IsInCheckmate())
         {
-            score += (100-depth)*100_000;
+
+            if (!playAsWhite)
+            {
+                score += (100 - depth) * 100_000;
+                if (isPlayer) // fix for: zwart verliezend ziet geen mate
+                {
+                    score *= -1;
+                }
+            }
+            else
+            {
+                score += (100 - depth) * 100_000;
+                if (playAsWhite == isPlayer)
+                {
+                    score *= -1;
+                }
+            }
         }
         bool[] colors = new bool[2] { playAsWhite, !playAsWhite };
+        float[] specialPieces = new float[2];
         foreach (bool color in colors) {
             float side = playAsWhite == color ? 1 : -1;
 
             /// Pawn
             foreach (Piece pawn in board.GetPieceList(PieceType.Pawn, color))
             {
-                score += (100 + (pawn.Square.File > 2 && pawn.Square.File < 5 ? 2f : 1f) *
-                    (color ? pawn.Square.Rank : 7 - pawn.Square.Rank)) * side;
+                float rankScore = color ? pawn.Square.Rank : 7 - pawn.Square.Rank;
+                score += (95 + (pawn.Square.File > 2 && pawn.Square.File < 5 ? 5f : 4f) *
+                     rankScore * rankScore) * side;
             }
 
             /// Knight
-            foreach (Piece knight in board.GetPieceList(PieceType.Knight, color))
+            PieceList knights = board.GetPieceList(PieceType.Knight, color);
+            foreach (Piece knight in knights)
             {
                 score += (316 + ((4f - (Math.Abs(knight.Square.Rank - 3.5f))) + (4f - (Math.Abs(knight.Square.File - 3.5f))))) * side;
             }
 
-            /// King
-            Piece king = board.GetPieceList(PieceType.King, color).First();
-            
-            score += ((color ? -king.Square.Rank : (-7 + king.Square.Rank))) * side;
-            score += (Math.Abs(king.Square.File - 3.5f)) * side;
-            score += board.HasKingsideCastleRight(color) || board.HasQueensideCastleRight(color) ? 3 : 0;
-            
-
             /// Bischop
-            foreach (Piece bischop in board.GetPieceList(PieceType.Bishop, color))
+            PieceList bischops = board.GetPieceList(PieceType.Bishop, color);
+            foreach (Piece bischop in bischops)
             {
-                score += (328 + ((4f - (Math.Abs(bischop.Square.Rank - 3.5f)))*.5f + .5f*(4f - (Math.Abs(bischop.Square.File - 3.5f))))) * side;
+                score += (328 + ((4f - (Math.Abs(bischop.Square.Rank - 3.5f))) + (4f - (Math.Abs(bischop.Square.File - 3.5f))))) * side;
             }
 
             /// Rook
-            score += board.GetPieceList(PieceType.Rook, color).Count * 493 * side;
+            int rooksCount = board.GetPieceList(PieceType.Rook, color).Count;
+            score += rooksCount * 493 * side;
 
             /// Queen
-            score += board.GetPieceList(PieceType.Queen, color).Count * 982 * side;
+            int queenCount = board.GetPieceList(PieceType.Queen, color).Count;
+            score += queenCount * 982 * side;
 
+            specialPieces[Convert.ToInt32(color)] = knights.Count + bischops.Count + rooksCount + queenCount;
 
+            /// King
+            Piece king = board.GetPieceList(PieceType.King, color).First();
+            if (specialPieces[Convert.ToInt32(color)] >= 3)
+            {
+                /// Early game, move to corners
+                //score += ((color ? -king.Square.Rank : (-7 + king.Square.Rank))) * side;
+                score -= ((4f - (Math.Abs(king.Square.Rank - 3.5f))) + (4f - (Math.Abs(king.Square.File - 3.5f))))*side;
+                score += (Math.Abs(king.Square.File - 3.5f)) * side;
+                score += (board.HasKingsideCastleRight(color) || board.HasQueensideCastleRight(color) ? 3 : 0)*side;
+            } else
+            {
+                /// Late game, move own king to center
+                score += ((4f - (Math.Abs(king.Square.Rank - 3.5f))) + (4f - (Math.Abs(king.Square.File - 3.5f)))) * side * .1f;
 
+                /// Potential improvement: move to the most back ranked pawn
+            }
         }
-        //float score =
-        //board.GetPieceList(PieceType.Pawn, playAsWhite).Count +
-        //board.GetPieceList(PieceType.Knight, playAsWhite).Count * 300 +
-        //board.GetPieceList(PieceType.Bishop, playAsWhite).Count * 300 +
-        //board.GetPieceList(PieceType.Rook, playAsWhite).Count * 500 +
-        //board.GetPieceList(PieceType.Queen, playAsWhite).Count * 900 +
-        //board.GetPieceList(PieceType.King, playAsWhite).Count * 90000
-        //- (
-        //board.GetPieceList(PieceType.Pawn, !playAsWhite).Count +
-        //board.GetPieceList(PieceType.Knight, !playAsWhite).Count * 300 +
-        //board.GetPieceList(PieceType.Bishop, !playAsWhite).Count * 300 +
-        //board.GetPieceList(PieceType.Rook, !playAsWhite).Count * 500 +
-        //board.GetPieceList(PieceType.Queen, !playAsWhite).Count * 900 +
-        //board.GetPieceList(PieceType.King, !playAsWhite).Count * 90000);
+
+        /// Promote trading pieces when having pieces advantage
+        score += (specialPieces[0] - specialPieces[1]) / (specialPieces[0] + specialPieces[1]) * 50;
         return score;
     }
 }
