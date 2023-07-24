@@ -18,7 +18,7 @@ struct MoveEval
 public class MyBot : IChessBot
 {
     static int ThinkingTime = 0;
-    static float VariableNodes = 10_000;
+    static float VariableNodes = 10_00;
     static ulong[] boards = new ulong[20];
     static int boardIndex = 0;
 
@@ -30,13 +30,13 @@ public class MyBot : IChessBot
             boards = new ulong[20];
             boardIndex = 0;
             ThinkingTime = 0;
-            VariableNodes = board.PlyCount <= 1 ? 500_000 : 800_000;
+            VariableNodes = board.PlyCount <= 1 ? 3000 : 3000;
             //VariableNodes = (board.PlyCount <= 1) ? 4_000 : 5_000;
         }
         
         int nodes = 0;
-        VariableNodes += ThinkingTime < 1800 -Math.Min(1600, Math.Max(0, (30_000-timer.MillisecondsRemaining)/8)) ? VariableNodes * .05f : VariableNodes * -.3f;
-        nodes = 1_000 + (int)VariableNodes;
+        VariableNodes += ThinkingTime < 1800 -Math.Min(1600, Math.Max(0, (30_000-timer.MillisecondsRemaining)/8)) ? VariableNodes * .2f : VariableNodes * -.4f;
+        nodes = 100 + (int)VariableNodes;
         Move bestMove = board.GetLegalMoves()[0];
         //int nodes = 100_000;
         boards[(boardIndex++) % 20] = board.ZobristKey;
@@ -75,8 +75,12 @@ public class MyBot : IChessBot
         }
         MoveEval[] sortedMoveEvals = GetMoveEvals(moves).OrderByDescending(moveEval => moveEval.Eval).ToArray();
 
+        if (depth > 30)
+        {
+            Console.WriteLine("DEPTH");
+        }
 
-        int nextNodes =(int)((float)nodes / (float)moves.Length);
+        int nextNodes = (int)((float)nodes / (float)(moves.Length + 1)) + ((!isPlayer) ? 0 : 1);
         bool repeat = (depth == 2 && boards.Contains(board.ZobristKey));
         if (depth == 2 && boards.Contains(board.ZobristKey))
         {
@@ -89,7 +93,7 @@ public class MyBot : IChessBot
             Move bestMove = new Move();
             float score = -Negamax(ref board, nextNodes, depth+1, -b, -a, !isPlayer, playAsWhite, ref bestMove);
 
-            if (repeat && score > 99)
+            if (repeat && score > 10)
             {
                 score *= .5f;
             }
@@ -119,6 +123,11 @@ public class MyBot : IChessBot
 
     private float heuristic(Board board, bool playAsWhite, int depth, bool isPlayer)
     {
+        if (!isPlayer)
+        {
+            // must be check mate for enemy player
+            //Console.WriteLine("NOT PLAYER!!!!!!!!!!!!!!!!!!!!!!");
+        }
        
         float score = 0; 
         if (board.IsInCheckmate())
@@ -150,7 +159,7 @@ public class MyBot : IChessBot
             foreach (Piece pawn in board.GetPieceList(PieceType.Pawn, color))
             {
                 float rankScore = color ? pawn.Square.Rank : 7 - pawn.Square.Rank;
-                score += (95 + (pawn.Square.File > 2 && pawn.Square.File < 5 ? 5f : 4f) *
+                score += (97 + (pawn.Square.File > 2 && pawn.Square.File < 5 ? 3f : 2f) *
                      rankScore * rankScore) * side;
             }
 
