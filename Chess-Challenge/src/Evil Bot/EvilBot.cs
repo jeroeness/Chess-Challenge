@@ -52,7 +52,7 @@ public class EvilBot : IChessBot
         {
 
             //moveEvals[i++] = (new MoveEval(move, (2*(int)move.CapturePieceType)+((int)move.MovePieceType)));
-            moveEvals[i++] = (new MoveEval(move, (int)move.CapturePieceType - ((int)move.MovePieceType % 6) + (int)move.CapturePieceType * 10));
+            moveEvals[i++] = (new MoveEval { Move = move, Eval = (int)move.CapturePieceType - ((int)move.MovePieceType % 6) + (int)move.CapturePieceType * 10 });
         }
         return moveEvals;
     }
@@ -227,7 +227,7 @@ public class EvilBot : IChessBot
         }
 
         /// Promote trading pieces when having pieces advantage
-        score += (specialPieces[0] - specialPieces[1]) / (specialPieces[0] + specialPieces[1] + 1) * 50;
+        score += (specialPieces[0] - specialPieces[1]) / (specialPieces[0] + specialPieces[1] + 1);
 
         return score;
     }
