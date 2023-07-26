@@ -1,6 +1,7 @@
 ﻿using ChessChallenge.API;
 using System;
 using System.Linq;
+using static System.Formats.Asn1.AsnWriter;
 
 struct MoveEval
 {
@@ -47,6 +48,7 @@ public class MyBot : IChessBot
         boards[(boardIndex++) % 20] = board.ZobristKey;
         Move nullMove = new Move();
         float score = Negamax(ref board, nodes, 0, float.MinValue, float.MaxValue , true, board.IsWhiteToMove, ref nullMove, ref bestMove);
+        
         ThinkingTime = timer.MillisecondsElapsedThisTurn;
         String color = board.IsWhiteToMove ? "WHITE" : "BLACK";
         Console.WriteLine($"{color} think {(float)ThinkingTime/1000.0}s / {(float)timer.MillisecondsRemaining/ 1000.0}s Sort {bestMoveIndex} \tnodes {nodes} \tscore {score} Depth {minDepth} to {maxDepth}");
@@ -69,13 +71,14 @@ public class MyBot : IChessBot
     private float Negamax(ref Board board, int nodes, int depth, float a, float b, bool isPlayer, bool playAsWhite, ref Move prevMove, ref Move outBestMove)
     {
         Move[] moves = board.GetLegalMoves();
-        float best = float.MinValue;
+        float best = -13370000000;
 
         if (nodes == 0 || moves.Length == 0)
         {
             minDepth = Math.Min(minDepth, depth);
             maxDepth = Math.Max(maxDepth, depth);
             float h = heuristic(board, playAsWhite, depth, isPlayer);
+            
             return isPlayer ? h : -h;
         }
         if (isPlayer && board.PlyCount <= 2 && depth == 0)
@@ -84,7 +87,7 @@ public class MyBot : IChessBot
         }
         MoveEval[] sortedMoveEvals = GetMoveEvals(moves).OrderByDescending(moveEval => moveEval.Eval).ToArray();
 
-        if (depth > 15)
+        if (depth > 20)
         {
             Console.WriteLine("DEPTH");
         }
@@ -109,7 +112,7 @@ public class MyBot : IChessBot
             //bonusNodes = (move.IsCapture && prevMove.IsCapture && depth < 10) ? 1 : 0;
             //bonusNodes = 0;
             float score = -Negamax(ref board, nextNodes + bonusNodes, depth+1, -b, -a, !isPlayer, playAsWhite, ref move, ref bestMove);
-
+            
             score *= (repeat && score > 10) ? .5f : 1;
 
             board.UndoMove(move);
@@ -124,11 +127,11 @@ public class MyBot : IChessBot
             {
                 a = best;
             }
-            if (depth <= 0)
-            {
-                //String color = playAsWhite ? "WHITE" : "BLACK";
-                //Console.WriteLine($"{color} {move}:{score} {depth} {outBestMove}:{best} {a}~{b} {isPlayer}");
-            }
+            //if (depth <= 0)
+            //{
+            //    String color = playAsWhite ? "WHITE" : "BLACK";
+            //    Console.WriteLine($"{color} {move}:{score} {depth} {outBestMove}:{best} {a}~{b} {isPlayer}");
+            //}
             if (a >= b)
             {
                 break;
@@ -169,21 +172,14 @@ public class MyBot : IChessBot
                     score *= -1;
                 }
             }
-            return score;
         }
         bool[] colors = new bool[2] { playAsWhite, !playAsWhite };
         float[] specialPieces = new float[2];
+
+        
         //int lateGame = specialPieces[true] + specialPieces[false] <= 6 ? 1 : 0;
         foreach (bool color in colors) {
             float side = playAsWhite == color ? 1 : -1;
-
-            /// Pawn
-            foreach (Piece pawn in board.GetPieceList(PieceType.Pawn, color))
-            {
-                float rankScore = color ? pawn.Square.Rank : 7 - pawn.Square.Rank;
-                score += (97 + (pawn.Square.File > 2 && pawn.Square.File < 5 ? 3f : 2f) *
-                     rankScore ) * side;
-            }
 
             /// Knight
             PieceList knights = board.GetPieceList(PieceType.Knight, color);
@@ -208,10 +204,11 @@ public class MyBot : IChessBot
             score += queenCount * 982 * side;
 
             specialPieces[Convert.ToInt32(color)] = knights.Count + bischops.Count + rooksCount + queenCount;
+            int lateGame = specialPieces[Convert.ToInt32(color)] >= 3 ? 1 : 0;
 
             /// King
             Piece king = board.GetPieceList(PieceType.King, color).First();
-            if (specialPieces[Convert.ToInt32(color)] >= 3)
+            if (lateGame == 0)
             {
                 /// Early game, move to corners
                 //score += ((color ? -king.Square.Rank : (-7 + king.Square.Rank))) * side;
@@ -225,10 +222,21 @@ public class MyBot : IChessBot
 
                 /// Potential improvement: move to the most back ranked pawn
             }
+
+
+            /// Pawn
+            foreach (Piece pawn in board.GetPieceList(PieceType.Pawn, color))
+            {
+                float rankScore = color ? pawn.Square.Rank : 7 - pawn.Square.Rank;
+                //score += (95 + ((pawn.Square.File > 2 && pawn.Square.File < 5) ? 1f : 0f) * rankScore * 5f) * side;
+                score += (98 + rankScore * rankScore * 2f) * side;
+            }
+
         }
 
         /// Promote trading pieces when having pieces advantage
-        score += (specialPieces[0] - specialPieces[1]) / (specialPieces[0] + specialPieces[1]) * 50;
+        score += (specialPieces[0] - specialPieces[1]) / (specialPieces[0] + specialPieces[1]+1) * 50;
+
         return score;
     }
 }
