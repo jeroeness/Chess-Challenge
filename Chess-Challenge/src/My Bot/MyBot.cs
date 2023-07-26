@@ -25,7 +25,7 @@ public class MyBot : IChessBot
     {
         if (timer.MillisecondsRemaining >= 59_900)
         {
-            Console.WriteLine("RESET");
+            //Console.WriteLine("RESET");
             boardIndex = 0;
             ThinkingTime = 0;
             captures = 0;
@@ -33,7 +33,7 @@ public class MyBot : IChessBot
             //VariableNodes = (board.PlyCount <= 1) ? 4_000 : 5_000;
         }
         timer_ = timer;
-        Console.WriteLine($"Heuristic {heuristic2(board, board.IsWhiteToMove, 0, true)}");
+        //Console.WriteLine($"Heuristic {heuristic2(board, board.IsWhiteToMove, 0, true)}");
         VariableNodes += ThinkingTime < 1800 -Math.Min(1600, Math.Max(0, (30_000-timer.MillisecondsRemaining)/8)) ? VariableNodes * .2f : VariableNodes * -.4f;
         int nodes = 100 + (int)VariableNodes;
         Move bestMove = board.GetLegalMoves()[0];
@@ -52,10 +52,10 @@ public class MyBot : IChessBot
         }
         
         board.MakeMove(bestMove);
-        Console.WriteLine($"Heuristic After move {heuristic2(board, !board.IsWhiteToMove, 0, true)}");
+        //Console.WriteLine($"Heuristic After move {heuristic2(board, !board.IsWhiteToMove, 0, true)}");
         ThinkingTime = timer.MillisecondsElapsedThisTurn;
-        String color = board.IsWhiteToMove ? "WHITE" : "BLACK";
-        Console.WriteLine($"{color} think {(float)ThinkingTime/1000.0}s / {(float)timer.MillisecondsRemaining/ 1000.0}s Sort {bestMoveIndex} \tnodes {nodes} \tscore {score} Depth {minDepth} to {maxDepth} Captures {captures}"); 
+        //String color = board.IsWhiteToMove ? "WHITE" : "BLACK";
+        //Console.WriteLine($"{color} think {(float)ThinkingTime/1000.0}s / {(float)timer.MillisecondsRemaining/ 1000.0}s Sort {bestMoveIndex} \tnodes {nodes} \tscore {score} Depth {minDepth} to {maxDepth} Captures {captures}"); 
         return bestMove;
     }
 
