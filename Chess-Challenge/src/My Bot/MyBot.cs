@@ -60,7 +60,7 @@ public class MyBot : IChessBot
         //Console.WriteLine($"Heuristic After move {heuristic2(board, !board.IsWhiteToMove, 0, true)}");
         ThinkingTime = timer.MillisecondsElapsedThisTurn;
         String color = board.IsWhiteToMove ? "WHITE" : "BLACK";
-        Console.WriteLine($"{color} think {(float)ThinkingTime/1000.0}s / {(float)timer.MillisecondsRemaining/ 1000.0}s Sort {bestMoveIndex} \tnodes {nodeCounter} \tscore {score} Depth {minDepth} to {maxDepth}"); 
+        Console.WriteLine($"{color} think {(float)ThinkingTime/1000.0}s / {(float)timer.MillisecondsRemaining/ 1000.0}s Sort {bestMoveIndex} \tnodes {nodeCounter} \tscore {score} Depth {minDepth} to {maxDepth} {bestMove}"); 
         return bestMove;
     }
 
@@ -129,10 +129,10 @@ public class MyBot : IChessBot
             //{
             //    bonusNodes = 1;
             //}
-            //if (move.IsCapture && timer_.MillisecondsElapsedThisTurn < 3000)
-            //{
-            //    bonusNodes = 1;
-            //}
+            if (move.IsCapture && (int)move.CapturePieceType + 1 >= (int)move.MovePieceType % 6 || board.IsInCheck()/* && timer_.MillisecondsElapsedThisTurn < 3000*/)
+            {
+                bonusNodes = 1;
+            }
             //bonusNodes = (move.IsCapture && prevMove.IsCapture && depth < 10) ? 1 : 0;
             //bonusNodes = 0;
             float score = -Negamax(ref board, nextNodes + bonusNodes, depth+1, -b, -a, !isPlayer, playAsWhite, ref move, ref bestMove);
@@ -158,7 +158,7 @@ public class MyBot : IChessBot
             //    String color = playAsWhite ? "WHITE" : "BLACK";
             //    Console.WriteLine($"{color} {move}:{score} {depth} {outBestMove}:{best} {a}~{b} {isPlayer}");
             //}
-            if (a >= b)
+            if (a > b)
             {
                 break;
             }
@@ -192,6 +192,7 @@ public class MyBot : IChessBot
             return score;
             // return when enemy in checkmate
         }
+        // TODO if in stalemate, return 0;
 
         int captures = board.GameMoveHistory.Where(move => move.IsCapture).ToArray().Length;
         float lategame = Math.Min(1,Math.Max(captures - 16f,0) / 10f);
@@ -215,7 +216,7 @@ public class MyBot : IChessBot
                 switch (p.PieceType)
                 {
                     case PieceType.Pawn:
-                        pscore += 99 + rankScore  *(4-Math.Abs(p.Square.File -3.5f))*3 + rankScore * 5 * lategame;
+                        pscore += 99 + rankScore *(1+rankScore*.5f) * (4-Math.Abs(p.Square.File -3.5f))*3 + rankScore * 5 * lategame;
                         break;
                     case PieceType.Knight:
                         pscore += 316 - distToMiddle;
@@ -250,9 +251,10 @@ public class MyBot : IChessBot
             testscore = heuristic2(board, !playAsWhite, depth, isPlayer);
         }
         score -= board.GetLegalMoves().Length*.1f; // Todo this is slow, use non alloc
+        score += board.IsInCheck() ? 50 : 0;
         board.UndoSkipTurn();
         score += board.GetLegalMoves().Length*.1f; // Todo this is slow, use non alloc
-        
+        score -= board.IsInCheck() ? 50 : 0;
         if (playAsWhite && -testscore - score > .001)
         {
             Console.WriteLine($"{score} {testscore}");
