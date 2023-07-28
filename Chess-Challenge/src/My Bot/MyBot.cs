@@ -25,11 +25,15 @@ public class MyBot : IChessBot
     static int maxDepth;
     static int minDepth;
     static int boardIndex;
+    static int cyclesHit;
     static float bestMoveIndex;
+    static float alpha;
+    static float beta;
     static Timer timer_;
     static int nodeCounter;
     //static Dictionary<ulong, float> boardHeuristics = new Dictionary<ulong, float>();
     static TableEntry[] boardHeuristics;
+    static TableEntry[] cycleTable;
 
 
     public Move Think(Board board, Timer timer)
@@ -39,10 +43,14 @@ public class MyBot : IChessBot
             //Console.WriteLine("RESET");
             boardIndex = 0;
             ThinkingTime = 0;
-            VariableNodes = 120_000;
+            VariableNodes = 5_000;
             boardHeuristics = new TableEntry[4_000_000];
+            alpha = -100000;
+            beta = 100000;
             //VariableNodes = (board.PlyCount <= 1) ? 4_000 : 5_000;
         }
+        //cycleTable = new TableEntry[1_000_000];
+        cyclesHit = 0;
         nodeCounter = 0;
         timer_ = timer;
         //Console.WriteLine($"Heuristic {heuristic2(board, board.IsWhiteToMove, 0, true)}");
@@ -53,14 +61,14 @@ public class MyBot : IChessBot
         maxDepth = -1;
         //int nodes = 100_000;
         Move nullMove = new Move();
-        float score = Negamax(ref board, nodes, 0, float.MinValue, float.MaxValue , true, board.IsWhiteToMove, ref nullMove, ref bestMove);
+        float score = Negamax(ref board, nodes, 0, alpha - 400, beta + 400, true, board.IsWhiteToMove, ref nullMove, ref bestMove);
        
         
         //board.MakeMove(bestMove);
         //Console.WriteLine($"Heuristic After move {heuristic2(board, !board.IsWhiteToMove, 0, true)}");
         ThinkingTime = timer.MillisecondsElapsedThisTurn;
         String color = board.IsWhiteToMove ? "WHITE" : "BLACK";
-        Console.WriteLine($"{color} think {(float)ThinkingTime/1000.0}s / {(float)timer.MillisecondsRemaining/ 1000.0}s Sort {bestMoveIndex} \tnodes {nodeCounter} \tscore {score} Depth {minDepth} to {maxDepth} {bestMove}"); 
+        Console.WriteLine($"{color} think {(float)ThinkingTime/1000.0}s / {(float)timer.MillisecondsRemaining/ 1000.0}s Sort {bestMoveIndex} \tnodes {nodeCounter} \tscore {Math.Round(score)} Depth {minDepth} to {maxDepth} cycles {cyclesHit} {bestMove}"); 
         return bestMove;
     }
 
@@ -80,44 +88,46 @@ public class MyBot : IChessBot
             //{
             
             //moveEvals[i++] = (new MoveEval(move, (2*(int)move.CapturePieceType)+((int)move.MovePieceType)));
-            moveEvals[i++] = new MoveEval { Move = move, Eval = tt_score /*+ (int)move.CapturePieceType - ((int)move.MovePieceType % 6) + (int)move.CapturePieceType * 10*/ };
+            moveEvals[i++] = new MoveEval { Move = move, Eval = tt_score + (int)move.CapturePieceType - ((int)move.MovePieceType % 6) + (int)move.CapturePieceType * 10 };
         }
         return moveEvals;
     }
 
     float Negamax(ref Board board, int nodes, int depth, float a, float b, bool isPlayer, bool playAsWhite, ref Move prevMove, ref Move outBestMove)
     {
-        Move[] moves = board.GetLegalMoves(nodes == 1);
+        //TableEntry tableEntry = cycleTable[board.ZobristKey % (ulong)cycleTable.Length];
+        //if (tableEntry.Zobristkey == board.ZobristKey)
+        //{
+        //    cyclesHit++;
+        //    return tableEntry.Score;
+        //}
+        Move[] moves = board.GetLegalMoves(/*depth > 5*/);
         float best = -13370000000;
 
-        if (nodes == 0 || moves.Length == 0)
+        if (nodes == 0 || moves.Length == 0 || depth >=6)
         {
             minDepth = Math.Min(minDepth, depth);
             maxDepth = Math.Max(maxDepth, depth);
-            float h = heuristic2(board, !isPlayer ? !playAsWhite : playAsWhite, depth, isPlayer);
+            float h = heuristic2(board, playAsWhite, depth, isPlayer);
             nodeCounter++;
-            return h;
-            //return isPlayer ? h : -h;
+            //return h;
+            return isPlayer ? h : -h;
         }
-        //if (isPlayer && board.PlyCount <= 2 && depth == 0)
-        //{
-        //    moves = moves.Select(moves => moves).Where(move => move.MovePieceType == PieceType.Pawn).ToArray();
-        //}
+        if (isPlayer && board.PlyCount <= 2 && depth == 0)
+        {
+            moves = moves.Select(moves => moves).Where(move => move.MovePieceType == PieceType.Pawn).ToArray();
+        }
         MoveEval[] sortedMoveEvals = GetMoveEvals(moves, board).OrderByDescending(moveEval => moveEval.Eval).ToArray();
 
-        //if (depth > 20)
-        //{
-        //    Console.WriteLine("DEPTH");
-        //}
+        if (depth > 30)
+        {
+            Console.WriteLine("DEPTH");
+        }
 
         int nextNodes = (int)((float)nodes / (float)(moves.Length + 1)) /*+ ((!isPlayer) ? 0 : 1)*/;
         
-        //bool repeat = (depth == 2 && boards.Contains(board.ZobristKey));
-        bool repeat = (depth == 2 && board.GameRepetitionHistory.Contains(board.ZobristKey));
-        if (repeat)
-        {
-            Console.WriteLine($"REPEAT {isPlayer}");
-        }
+        bool repeat = depth == 2 && board.GameRepetitionHistory.Contains(board.ZobristKey);
+        
         int k = 0;
         foreach (MoveEval moveEval in sortedMoveEvals)
         {
@@ -129,10 +139,19 @@ public class MyBot : IChessBot
             //{
             //    bonusNodes = 1;
             //}
-            if (move.IsCapture && (int)move.CapturePieceType + 1 >= (int)move.MovePieceType % 6 || board.IsInCheck()/* && timer_.MillisecondsElapsedThisTurn < 3000*/)
+            //bonusNodes = (depth % 2 == 0) ? 2 : 0;
+            if (/* timer_.MillisecondsRemaining > 20_000 &&*/ (move.IsCapture || board.IsInCheck()) /* && (int)move.CapturePieceType + 1 >= (int)move.MovePieceType % 6 */ /* && timer_.MillisecondsElapsedThisTurn < 3000*/)
             {
                 bonusNodes = 1;
             }
+            //if (depth < 3)
+            //{
+            //    bonusNodes = 2;
+            //}
+            //if (depth >=5)
+            //{
+            //    bonusNodes = 0;
+            //}
             //bonusNodes = (move.IsCapture && prevMove.IsCapture && depth < 10) ? 1 : 0;
             //bonusNodes = 0;
             float score = -Negamax(ref board, nextNodes + bonusNodes, depth+1, -b, -a, !isPlayer, playAsWhite, ref move, ref bestMove);
@@ -158,16 +177,23 @@ public class MyBot : IChessBot
             //    String color = playAsWhite ? "WHITE" : "BLACK";
             //    Console.WriteLine($"{color} {move}:{score} {depth} {outBestMove}:{best} {a}~{b} {isPlayer}");
             //}
-            if (a > b)
+            if (a >= b)
             {
                 break;
             }
         }
-        //if (depth == 0)
-        //{
-        //    bestMoveIndex = 1f - (float)bestMoveIndex / (float)sortedMoveEvals.Length;
-        //}
-        return best;
+        if (depth == 0)
+        {
+            //bestMoveIndex = 1f - (float)bestMoveIndex / (float)sortedMoveEvals.Length;
+            alpha = a;
+        }
+        if (depth == 1)
+        {
+            beta = Math.Max(a, beta);
+
+        }
+        //cycleTable[board.ZobristKey % (ulong)cycleTable.Length] = new TableEntry { Zobristkey = board.ZobristKey, Score = best };
+        return best*.99f;
     }
 
     static float distance(Square a, float rank, float file)
@@ -181,10 +207,10 @@ public class MyBot : IChessBot
         if (board.IsInCheckmate())
         {
             score -= (100 - depth) * 100_000;
-            //if (isPlayer) // fix for: zwart verliezend ziet geen mate
-            //{
-            //    score *= -1;
-            //}
+            if (!isPlayer) // fix for: zwart verliezend ziet geen mate
+            {
+                score *= -1;
+            }
             //else
             //{
             //    Console.WriteLine("CHECKMATE");
@@ -231,11 +257,11 @@ public class MyBot : IChessBot
                         pscore += 982 + onEnKingFileOrRank*5 + onEnKingDiagonal - rankScore*2;
                         break;
                     case PieceType.King:
-                        pscore += distToMiddle*2 + Convert.ToUInt32(board.HasKingsideCastleRight(p.IsWhite) || board.HasQueensideCastleRight(p.IsWhite))*4;
+                        pscore += (distToMiddle*2 - 2*rankScore * ((1-lategame)*2-1)) + Convert.ToUInt32(board.HasKingsideCastleRight(p.IsWhite) || board.HasQueensideCastleRight(p.IsWhite))*4;
                         break;
                 }
                 material[Convert.ToUInt32(pl.IsWhitePieceList)]++;
-                pscore += (2 * lategame * -distanceToEnemyKing);
+                pscore += (4 * lategame * -distanceToEnemyKing);
             }
             score += pscore * side;
         }
@@ -251,10 +277,10 @@ public class MyBot : IChessBot
             testscore = heuristic2(board, !playAsWhite, depth, isPlayer);
         }
         score -= board.GetLegalMoves().Length*.1f; // Todo this is slow, use non alloc
-        score += board.IsInCheck() ? 50 : 0;
+        //score += board.IsInCheck() ? 50 : 0;
         board.UndoSkipTurn();
         score += board.GetLegalMoves().Length*.1f; // Todo this is slow, use non alloc
-        score -= board.IsInCheck() ? 50 : 0;
+        //score -= board.IsInCheck() ? 50 : 0;
         if (playAsWhite && -testscore - score > .001)
         {
             Console.WriteLine($"{score} {testscore}");
