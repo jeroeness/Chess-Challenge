@@ -225,7 +225,15 @@ public class MyBot : IChessBot
         float lategame = Math.Min(1,Math.Max(captures - 16f,0) / 10f);
 
 
-        int[] material = new int[2]; 
+        int[] material = new int[2];
+        foreach (PieceList pl in board.GetAllPieceLists())
+        {
+            foreach (Piece p in pl)
+            {
+                material[Convert.ToUInt32(pl.IsWhitePieceList)]++;
+            }
+        }
+        float materialAdvantage = (material[0] - material[1]) / (material[0] + material[1]);
         foreach (PieceList pl in board.GetAllPieceLists())
         {
             float pscore = 0;
@@ -261,14 +269,13 @@ public class MyBot : IChessBot
                         pscore += (distToMiddle*2 - 2*rankScore * ((1-lategame)*2-1)) + Convert.ToUInt32(board.HasKingsideCastleRight(p.IsWhite) || board.HasQueensideCastleRight(p.IsWhite))*4;
                         break;
                 }
-                material[Convert.ToUInt32(pl.IsWhitePieceList)]++;
-                pscore += (4 * lategame * -distanceToEnemyKing);
+                pscore += (4 * lategame * -distanceToEnemyKing * materialAdvantage * side);
             }
             score += pscore * side;
         }
 
         //Console.WriteLine($"{score}");
-        score += (material[0] - material[1]) / (material[0] + material[1]);
+        score += materialAdvantage;
 
         // Count moves available
         board.ForceSkipTurn();
