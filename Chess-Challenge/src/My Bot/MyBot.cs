@@ -32,7 +32,7 @@ public class MyBot : IChessBot
     static Timer timer_;
     static int nodeCounter;
     //static Dictionary<ulong, float> boardHeuristics = new Dictionary<ulong, float>();
-    static TableEntry[] boardHeuristics;
+    //static TableEntry[] boardHeuristics;
     static TableEntry[] cycleTable;
 
 
@@ -44,7 +44,7 @@ public class MyBot : IChessBot
             boardIndex = 0;
             ThinkingTime = 0;
             VariableNodes = 2_000;
-            boardHeuristics = new TableEntry[4_000_000];
+            //boardHeuristics = new TableEntry[4_000_000];
             alpha = -100000;
             beta = 100000;
             //VariableNodes = (board.PlyCount <= 1) ? 4_000 : 5_000;
@@ -61,7 +61,7 @@ public class MyBot : IChessBot
         maxDepth = -1;
         //int nodes = 100_000;
         Move nullMove = new Move();
-        float score = Negamax(ref board, nodes, 0, alpha - 200, beta + 200, true, board.IsWhiteToMove, ref nullMove, ref bestMove);
+        float score = Negamax(ref board, nodes, 0, float.MinValue, float.MaxValue, true, board.IsWhiteToMove, ref nullMove, ref bestMove);
        
         
         //board.MakeMove(bestMove);
@@ -78,17 +78,17 @@ public class MyBot : IChessBot
         int i = 0;
         foreach (Move move in moves)
         {  
-            board.MakeMove(move);
+            //board.MakeMove(move);
             // query the heuristic table
-            TableEntry tableEntry = boardHeuristics[board.ZobristKey % (ulong)boardHeuristics.Length];
-            float tt_score = tableEntry.Zobristkey == board.ZobristKey ? tableEntry.Score : -10_000; // Also for negative gamestate we prioritize TT moves
-            board.UndoMove(move);
+            //TableEntry tableEntry = boardHeuristics[board.ZobristKey % (ulong)boardHeuristics.Length];
+            //float tt_score = tableEntry.Zobristkey == board.ZobristKey ? tableEntry.Score : -10_000; // Also for negative gamestate we prioritize TT moves
+            //board.UndoMove(move);
             //float heuristic = 0;
             //if (boardHeuristics.TryGetValue(board.ZobristKey, out heuristic))
             //{
             
             //moveEvals[i++] = (new MoveEval(move, (2*(int)move.CapturePieceType)+((int)move.MovePieceType)));
-            moveEvals[i++] = new MoveEval { Move = move, Eval = tt_score + (int)move.CapturePieceType - ((int)move.MovePieceType % 6) + (int)move.CapturePieceType * 10 };
+            moveEvals[i++] = new MoveEval { Move = move, Eval = /*tt_score*/ + (int)move.CapturePieceType - ((int)move.MovePieceType % 6) + (int)move.CapturePieceType * 10 };
         }
         return moveEvals;
     }
@@ -156,15 +156,15 @@ public class MyBot : IChessBot
             //bonusNodes = 0;
             float score = -Negamax(ref board, nextNodes + bonusNodes, depth+1, -b, -a, !isPlayer, playAsWhite, ref move, ref bestMove);
             
-            score *= (repeat && score > 50) ? .75f : 1;
+            score *= (repeat && score > 100) ? .5f : 1;
 
             k++;
             if (score > best)
             {
                 if (depth == 0)bestMoveIndex = k;
 
-                boardHeuristics[board.ZobristKey % (ulong)boardHeuristics.Length].Zobristkey = board.ZobristKey;
-                boardHeuristics[board.ZobristKey % (ulong)boardHeuristics.Length].Score = score;
+                //boardHeuristics[board.ZobristKey % (ulong)boardHeuristics.Length].Zobristkey = board.ZobristKey;
+                //boardHeuristics[board.ZobristKey % (ulong)boardHeuristics.Length].Score = score;
                 outBestMove = move;
                 best = score;
             }
@@ -207,8 +207,8 @@ public class MyBot : IChessBot
         float score = 0;
         if (board.IsInCheckmate())
         {
-            score -= (100 - depth) * 100_000;
-            if (!isPlayer) // fix for: zwart verliezend ziet geen mate
+            score += (100 - depth) * 100_000;
+            if (isPlayer) // fix for: zwart verliezend ziet geen mate
             {
                 score *= -1;
             }
@@ -266,10 +266,10 @@ public class MyBot : IChessBot
                         pscore += 982 + onEnKingFileOrRank*5 + onEnKingDiagonal - rankScore*2;
                         break;
                     case PieceType.King:
-                        pscore += (distToMiddle*2 - 2*rankScore * ((1-lategame)*2-1)) + Convert.ToUInt32(board.HasKingsideCastleRight(p.IsWhite) || board.HasQueensideCastleRight(p.IsWhite))*4;
+                        pscore += (distToMiddle*2 - rankScore * ((1-lategame)*2-1)) + Convert.ToUInt32(board.HasKingsideCastleRight(p.IsWhite) || board.HasQueensideCastleRight(p.IsWhite))*4;
                         break;
                 }
-                pscore += (4 * lategame * -distanceToEnemyKing * materialAdvantage * side);
+                pscore += (5 * lategame * -distanceToEnemyKing * materialAdvantage * side);
             }
             score += pscore * side;
         }
