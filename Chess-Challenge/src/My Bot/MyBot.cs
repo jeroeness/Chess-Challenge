@@ -43,7 +43,7 @@ public class MyBot : IChessBot
             //Console.WriteLine("RESET");
             boardIndex = 0;
             ThinkingTime = 0;
-            VariableNodes = 2_000;
+            VariableNodes = 20_000;
             //boardHeuristics = new TableEntry[4_000_000];
             alpha = -100000;
             beta = 100000;
@@ -61,9 +61,10 @@ public class MyBot : IChessBot
         maxDepth = -1;
         //int nodes = 100_000;
         Move nullMove = new Move();
-        float score = Negamax(ref board, nodes, 0, float.MinValue, float.MaxValue, true, board.IsWhiteToMove, ref nullMove, ref bestMove);
-       
-        
+        //float score = Negamax(ref board, nodes, 0, float.MinValue, float.MaxValue, true, board.IsWhiteToMove, ref nullMove, ref bestMove);
+        float score = pvs(ref board, nodes, 0, float.MinValue, float.MaxValue, true, board.IsWhiteToMove, ref bestMove);
+
+
         //board.MakeMove(bestMove);
         //Console.WriteLine($"Heuristic After move {heuristic2(board, !board.IsWhiteToMove, 0, true)}");
         ThinkingTime = timer.MillisecondsElapsedThisTurn;
@@ -91,6 +92,68 @@ public class MyBot : IChessBot
             moveEvals[i++] = new MoveEval { Move = move, Eval = /*tt_score*/ + (int)move.CapturePieceType - ((int)move.MovePieceType % 6) + (int)move.CapturePieceType * 10 };
         }
         return moveEvals;
+    }
+
+    float pvs(ref Board board, int nodes, int depth, float a, float b, bool isPlayer, bool playAsWhite, ref Move outBestMove)
+    {
+        Move[] moves = board.GetLegalMoves();
+        float best = a;
+
+        if (nodes == 0 || moves.Length == 0)
+        {
+            minDepth = Math.Min(minDepth, depth);
+            maxDepth = Math.Max(maxDepth, depth);
+            float h = heuristic2(board, playAsWhite, depth, isPlayer);
+            nodeCounter++;
+            return isPlayer ? h : -h;
+        }
+        MoveEval[] sortedMoveEvals = GetMoveEvals(moves, board).OrderByDescending(moveEval => moveEval.Eval).ToArray();
+        int nextNodes = (int)((float)nodes / (float)(moves.Length + 1));
+        bool repeat = depth == 2 && board.GameRepetitionHistory.Contains(board.ZobristKey);
+        
+        Move bestMove = new Move();
+
+        float score = 0;
+        for (int i = 0; i < sortedMoveEvals.Length;)
+        {
+
+            Move move = sortedMoveEvals[i++].Move;
+            board.MakeMove(move);
+            if (i == 1)
+            {
+                score = -pvs(ref board, nextNodes, depth + 1, -b, -a, !isPlayer, playAsWhite, ref bestMove);
+            }
+            else
+            {
+
+                score = -pvs(ref board, nextNodes, depth + 1, -a - 1, -a, !isPlayer, playAsWhite, ref bestMove);
+                if (a < score && score < b)
+                {
+                    if (depth == 0)
+                    {
+                        Console.WriteLine($"a < score < b => {a} < {score} < {b}");
+                    }
+                    score = -pvs(ref board, nextNodes, depth + 1, -b, -score, !isPlayer, playAsWhite, ref bestMove);
+                }
+
+            }
+            if (depth == 0)
+            {
+                Console.WriteLine($"Move {move} score {score}");
+            }
+            board.UndoMove(move);
+            if (score > best)
+            {
+                best = score;
+                outBestMove = move;
+            }
+            if (best >= b)
+            {
+                break;
+            }
+
+        }
+        return best;
     }
 
     float Negamax(ref Board board, int nodes, int depth, float a, float b, bool isPlayer, bool playAsWhite, ref Move prevMove, ref Move outBestMove)
