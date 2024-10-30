@@ -13,7 +13,7 @@ namespace ChessChallenge.Application
     {
       
         // Board settings
-        const int squareSize = 100;
+        public const int squareSize = 100;
         const double moveAnimDuration = 0.15;
         bool whitePerspective = true;
 
@@ -34,6 +34,7 @@ namespace ChessChallenge.Application
         bool isDraggingPiece;
         int dragSquare;
         Vector2 dragPos;
+        int estimateWhiteScore;
 
         static readonly int[] pieceImageOrder = { 5, 3, 2, 4, 1, 0 };
         Texture2D piecesTexture;
@@ -310,7 +311,6 @@ namespace ChessChallenge.Application
             }
         }
 
-
         void DrawBorder()
         {
             int boardStartX = -squareSize * 4;
@@ -440,6 +440,24 @@ namespace ChessChallenge.Application
         {
             const int size = 333;
             return new Rectangle(size * pieceImageOrder[pieceType - 1], isWhite ? 0 : size, size, size);
+        }
+
+        internal void DrawMoveSuggestion(API.Move suggestedMove)
+        {
+            if (suggestedMove != null)
+            {
+                int startFile = suggestedMove.StartSquare.Index % 8;
+                int startRank = suggestedMove.StartSquare.Index / 8;
+                int endFile = suggestedMove.TargetSquare.Index % 8;
+                int endRank = suggestedMove.TargetSquare.Index / 8;
+
+                Vector2 startPos = GetSquarePos(startFile, startRank, whitePerspective) + new Vector2(squareSize / 2);
+                Vector2 endPos = GetSquarePos(endFile, endRank, whitePerspective) + new Vector2(squareSize / 2);
+                Color color = board.IsWhiteToMove ? theme.SuggestedMoveWhiteCol : theme.SuggestedMoveBlackCol ;
+                Raylib.DrawLineEx(startPos, endPos, 8, color);
+                Raylib.DrawCircleV(endPos, 8, color);
+                Raylib.DrawCircleV(startPos, 8, color);
+            }
         }
     }
 }

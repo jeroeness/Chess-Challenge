@@ -8,7 +8,7 @@ namespace ChessChallenge.Application
         // public event Action<Chess.Core.Move>? MoveChosen;
 
         public readonly ChallengeController.PlayerType PlayerType;
-        public readonly IChessBot? Bot;
+        public readonly ChessBot? Bot;
         public readonly HumanPlayer? Human;
 
         double secondsElapsed;
@@ -17,7 +17,7 @@ namespace ChessChallenge.Application
         public ChessPlayer(object instance, ChallengeController.PlayerType type, int baseTimeMS = int.MaxValue)
         {
             this.PlayerType = type;
-            Bot = instance as IChessBot;
+            Bot = instance as ChessBot;
             Human = instance as HumanPlayer;
             this.baseTimeMS = baseTimeMS;
 

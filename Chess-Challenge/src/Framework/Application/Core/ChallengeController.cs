@@ -1,5 +1,4 @@
 ﻿using ChessChallenge.Chess;
-using ChessChallenge.Example;
 using Raylib_cs;
 using System;
 using System.IO;
@@ -10,6 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using static ChessChallenge.Application.Settings;
 using static ChessChallenge.Application.ConsoleHelper;
+using Chess_Challenge.src.My_Bot;
+using System.Numerics;
 
 namespace ChessChallenge.Application
 {
@@ -34,6 +35,7 @@ namespace ChessChallenge.Application
         bool isWaitingToPlayMove;
         Move moveToPlay;
         float playMoveTime;
+        int estimatedScore;
         public bool HumanWasWhiteLastGame { get; private set; }
 
         // Bot match state
@@ -207,7 +209,7 @@ namespace ChessChallenge.Application
         {
             return type switch
             {
-                PlayerType.MyBot => new ChessPlayer(new MyBot(), type, GameDurationMilliseconds),
+                PlayerType.MyBot => new ChessPlayer(new Bot_514(), type, GameDurationMilliseconds),
                 PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type, GameDurationMilliseconds),
                 _ => new ChessPlayer(new HumanPlayer(boardUI), type)
             };
@@ -383,7 +385,28 @@ namespace ChessChallenge.Application
             string nameW = GetPlayerName(PlayerWhite);
             string nameB = GetPlayerName(PlayerBlack);
             boardUI.DrawPlayerNames(nameW, nameB, PlayerWhite.TimeRemainingMs, PlayerBlack.TimeRemainingMs, isPlaying);
+
+            if (PlayerToMove.PlayerType == PlayerType.MyBot)
+            {
+                this.estimatedScore = PlayerToMove.Bot.estimatedScore;
+                boardUI.DrawMoveSuggestion(PlayerToMove.Bot.suggestedMove);
+            }
+            DrawScores();
         }
+
+
+        void DrawScores()
+        {
+
+            int boardStartX = -BoardUI.squareSize * 4;
+            int boardStartY = -BoardUI.squareSize * 4;
+            int w = 12;
+            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w , w*3, 8 * BoardUI.squareSize + w * 2 , Color.WHITE);
+            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w, w*3, (8 * BoardUI.squareSize + w * 2) / 2 + estimatedScore, Color.BLACK);
+            float estimatedScoreFloat = (float)estimatedScore / 100.0f;
+            UIHelper.DrawText($"{estimatedScoreFloat:0.0}", new Vector2(boardStartX - w * 2.5f , boardStartY + (8 * BoardUI.squareSize + w * 2) / 2 + estimatedScore - 25), 30, 0, Color.WHITE, UIHelper.AlignH.Centre);
+        }
+
         public void DrawOverlay()
         {
             BotBrainCapacityUI.Draw(tokenCount, MaxTokenCount);

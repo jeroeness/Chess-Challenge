@@ -9,7 +9,7 @@ using ChessChallenge.API;
 namespace Chess_Challenge.src.My_Bot
 {
 
-    public class MyBot : ChessBot
+    public class Bot_514 : ChessBot
     {
         // Keeping track of which quiet move move is most likely to cause a beta cutoff.
         // The higher the score is, the more likely a beta cutoff is, so in move ordering we will put these moves first.
@@ -239,7 +239,7 @@ namespace Chess_Challenge.src.My_Bot
 
                     // A quiet move traditionally means a move that doesn't cause a capture to be the best move,
                     // is not a promotion, and doesn't give check. For token savings we only consider captures.
-                    bool isQuiet = !move.IsCapture;
+                    bool isQuiet = !move.IsCapture && !move.IsPromotion;
 
                     // Principal variation search
                     // We trust that our move ordering is good enough to ensure the first move searched to be the best move most of the time,
@@ -313,6 +313,7 @@ namespace Chess_Challenge.src.My_Bot
                         break;
                 }
 
+
                 // Checkmate / stalemate detection
                 // 1000000 = mate score
                 if (movesEvaluated == 0)
@@ -334,6 +335,9 @@ namespace Chess_Challenge.src.My_Bot
                         beta = score + window;
                     // Search with the current window
                     score = Search(0, depth, alpha, beta, false);
+                    Console.WriteLine($"{window} {depth} {score} {rootBestMove}");
+                    estimatedScore = score;
+                    suggestedMove = rootBestMove;
 
                     // Hard time limit
                     // If we are out of time, we stop searching and break.
