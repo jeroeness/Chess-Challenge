@@ -27,9 +27,9 @@ namespace ChessChallenge.Application
         Random rng;
         int gameID;
         bool isPlaying;
-        Board board;
+        public Board board;
         public ChessPlayer PlayerWhite { get; private set; }
-        public ChessPlayer PlayerBlack {get;private set;}
+        public ChessPlayer PlayerBlack { get; private set; }
 
         float lastMoveMadeTime;
         bool isWaitingToPlayMove;
@@ -42,7 +42,7 @@ namespace ChessChallenge.Application
         readonly string[] botMatchStartFens;
         int botMatchGameIndex;
         public BotMatchStats BotStatsA { get; private set; }
-        public BotMatchStats BotStatsB {get;private set;}
+        public BotMatchStats BotStatsB { get; private set; }
         bool botAPlaysWhite;
 
 
@@ -77,7 +77,7 @@ namespace ChessChallenge.Application
             StartNewGame(PlayerType.Human, PlayerType.MyBot);
         }
 
-        public void StartNewGame(PlayerType whiteType, PlayerType blackType)
+        public void StartNewGame(PlayerType whiteType, PlayerType blackType, String fen = "")
         {
             // End any ongoing game
             EndGame(GameResult.DrawByArbiter, log: false, autoStartNextBotMatch: false);
@@ -96,7 +96,14 @@ namespace ChessChallenge.Application
             board = new Board();
             bool isGameWithHuman = whiteType is PlayerType.Human || blackType is PlayerType.Human;
             int fenIndex = isGameWithHuman ? 0 : botMatchGameIndex / 2;
-            board.LoadPosition(botMatchStartFens[fenIndex]);
+            if (fen.Length > 0)
+            {
+                board.LoadPosition(fen);
+            }
+            else
+            {
+                board.LoadPosition(botMatchStartFens[fenIndex]);
+            }
 
             // Player Setup
             PlayerWhite = CreatePlayer(whiteType);
@@ -388,7 +395,7 @@ namespace ChessChallenge.Application
 
             if (PlayerToMove.PlayerType == PlayerType.MyBot)
             {
-                this.estimatedScore = PlayerToMove.Bot.estimatedScore;
+                this.estimatedScore = PlayerWhite != PlayerToMove ? PlayerToMove.Bot.estimatedScore : -PlayerToMove.Bot.estimatedScore;
                 boardUI.DrawMoveSuggestion(PlayerToMove.Bot.suggestedMove);
             }
             DrawScores();
@@ -401,10 +408,10 @@ namespace ChessChallenge.Application
             int boardStartX = -BoardUI.squareSize * 4;
             int boardStartY = -BoardUI.squareSize * 4;
             int w = 12;
-            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w , w*3, 8 * BoardUI.squareSize + w * 2 , Color.WHITE);
-            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w, w*3, (8 * BoardUI.squareSize + w * 2) / 2 + estimatedScore, Color.BLACK);
-            float estimatedScoreFloat = (float)estimatedScore / 100.0f;
-            UIHelper.DrawText($"{estimatedScoreFloat:0.0}", new Vector2(boardStartX - w * 2.5f , boardStartY + (8 * BoardUI.squareSize + w * 2) / 2 + estimatedScore - 25), 30, 0, Color.WHITE, UIHelper.AlignH.Centre);
+            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w, w * 3, 8 * BoardUI.squareSize + w * 2, Color.WHITE);
+            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w, w * 3, (8 * BoardUI.squareSize + w * 2) / 2 + estimatedScore, Color.BLACK);
+            float estimatedScoreFloat = (float)estimatedScore / -100.0f;
+            UIHelper.DrawText($"{estimatedScoreFloat:0.0}", new Vector2(boardStartX - w * 2.5f, boardStartY + (8 * BoardUI.squareSize + w * 2) / 2 + estimatedScore - 25), 30, 0, Color.WHITE, UIHelper.AlignH.Centre);
         }
 
         public void DrawOverlay()

@@ -6,6 +6,8 @@ Bits 0-5: start square index
 Bits 6-11: target square index
 Bits 12-15: flag (promotion type, etc)
 */
+using ChessChallenge.API;
+
 namespace ChessChallenge.Chess
 {
     public readonly struct Move
@@ -76,6 +78,11 @@ namespace ChessChallenge.Chess
         public static Move NullMove => new Move(0);
         public static bool SameMove(Move a, Move b) => a.moveValue == b.moveValue;
 
+        public override string ToString()
+        {
+            string moveName = MoveUtility.GetMoveNameUCI(this);
+            return $"Move: '{moveName}'";
+        }
 
     }
 }

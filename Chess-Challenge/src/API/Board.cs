@@ -145,6 +145,10 @@ namespace ChessChallenge.API
 		/// </summary>
 		public Move[] GetLegalMoves(bool capturesOnly = false)
 		{
+			if (IsMyKingCaptured())
+			{
+				return Array.Empty<Move>();
+			}
 			if (capturesOnly)
 			{
 				return GetLegalCaptureMoves();
@@ -155,7 +159,7 @@ namespace ChessChallenge.API
                 Span<Move> moveSpan = movesDest.AsSpan();
                 moveGen.GenerateMoves(ref moveSpan, board, includeQuietMoves: true);
                 cachedLegalMoves = moveSpan.ToArray();
-                hasCachedMoves = true;
+                hasCachedMoves = false; // TODO disable this speedup due to bug
 			}
 
 			return cachedLegalMoves;
@@ -181,7 +185,7 @@ namespace ChessChallenge.API
                 Span<Move> moveSpan = movesDest.AsSpan();
                 moveGen.GenerateMoves(ref moveSpan, board, includeQuietMoves: false);
                 cachedLegalCaptureMoves = moveSpan.ToArray();
-                hasCachedCaptureMoves = true;
+                hasCachedCaptureMoves = false;
 			}
 			return cachedLegalCaptureMoves;
 		}
@@ -190,11 +194,14 @@ namespace ChessChallenge.API
 		/// Test if the player to move is in check in the current position.
 		/// </summary>
 		public bool IsInCheck() => board.IsInCheck();
+        public bool IsOpponentKingCaptured() => board.IsOpponentKingCaptured();
 
-		/// <summary>
-		/// Test if the current position is checkmate
-		/// </summary>
-		public bool IsInCheckmate() => IsInCheck() && GetLegalMoves().Length == 0;
+		public bool IsMyKingCaptured() => board.IsMyKingCaptured();
+
+        /// <summary>
+        /// Test if the current position is checkmate
+        /// </summary>
+        public bool IsInCheckmate() => IsInCheck() && GetLegalMoves().Length == 0;
 
         /// <summary>
         /// Test if the current position is a draw due stalemate, repetition, insufficient material, or 50-move rule.
@@ -228,6 +235,8 @@ namespace ChessChallenge.API
         /// (for example, a piece might be in the way, or player might be in check, etc).
         /// </summary>
         public bool HasKingsideCastleRight(bool white) => board.currentGameState.HasKingsideCastleRight(white);
+
+		public int DebugGetGameMovesCount() => board.AllGameMoves.Count;
 
 		/// <summary>
 		/// Does the given player still have the right to castle queenside?
@@ -361,6 +370,13 @@ namespace ChessChallenge.API
             Chess.Board boardCore = new Chess.Board();
             boardCore.LoadPosition(fen);
             return new Board(boardCore);
+        }
+
+
+        public bool getPlayerToMoveAtPly(int ply)
+        {
+            int index = ply % 640;
+            return board.turnSequence[index];
         }
 
     }

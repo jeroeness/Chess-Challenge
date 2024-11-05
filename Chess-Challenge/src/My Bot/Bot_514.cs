@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using ChessChallenge.API;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 // Project: smol.cs
 // License: MIT
 // Authors: Gediminas Masaitis, Goh CJ (cj5716)
@@ -36,14 +37,16 @@ namespace Chess_Challenge.src.My_Bot
         // The idea of this is that we can do operations on both midgame and endgame values simultaneously, preventing the need
         // for evaluation for separate mid-game / end-game terms.
         int[] evalValues = Enumerable.Range(0, 138).Select(i => extracted[i * 2] | extracted[i * 2 + 1] << 16).ToArray();
+        int id = new Random().Next(0,20000000);
 
         public override Move Think(Board board, Timer timer)
         {
+            Console.WriteLine("Starting search...");
             // The move that will eventually be reported as our best move
             Move rootBestMove = default;
 
             // Intitialise parameters that exist only during one search
-            var (killers, allocatedTime, i, score, depth) = (new Move[256], timer.MillisecondsRemaining / 8, 0, 0, 1);
+            var (killers, allocatedTime, i, score, depth) = (new Move[256], timer.MillisecondsRemaining / 4, 0, 0, 1);
 
             // Decay quiet history instead of clearing it. 
             for (; i < 4096; quietHistory[i++] /= 8) ;
@@ -62,6 +65,12 @@ namespace Chess_Challenge.src.My_Bot
                 if (inCheck)
                     depth++;
 
+                if (board.IsMyKingCaptured())
+                    return -1_200_000 + ply;
+
+                //if (board.IsOpponentKingCaptured())
+                //    return 1_000_000 - ply;
+
                 // In-qsearch is a flag that determines whether not we should prune positions ans whether or not to search non-captures.
                 // Qsearch, also meaning quiescence search, is a mode that only looks at captures in order to give a more accurate
                 // estimate "if all the viable captures happen". In this engine it is interlaced with the main search to save tokens, although
@@ -69,7 +78,8 @@ namespace Chess_Challenge.src.My_Bot
                 // -2000000 = -inf. It just indicates "no move has been found yet".
                 // Tempo is the idea that each move is benefitial to us, so we adjust the static eval using a fixed value.
                 // We use 15 tempo for evaluation for mid-game, 0 for end-game.
-                var (key, inQsearch, bestScore, doPruning, score, phase) = (board.ZobristKey, depth <= 0, -2_000_000, alpha == beta - 1 && !inCheck, 15, 0);
+                var pruning_eval = false; //alpha == beta - 1 && !inCheck
+                var (key, inQsearch, bestScore, doPruning, score, phase) = (board.ZobristKey, depth <= 0, -2_000_000, pruning_eval, 15, 0);
 
                 // Here we do a static evaluation to determine the current static score for the position.
                 // A static evaluation is like a one-look determination of how good the position is, without looking into the future.
@@ -83,6 +93,8 @@ namespace Chess_Challenge.src.My_Bot
                 foreach (bool isWhite in new[] { !board.IsWhiteToMove, board.IsWhiteToMove })
                 {
                     score = -score;
+
+                    score += (2^15+ply) * BitboardHelper.GetNumberOfSetBits(board.GetPieceBitboard(PieceType.King, isWhite));
 
                     //       None (skipped)               King
                     for (var pieceIndex = 0; ++pieceIndex <= 6;)
@@ -151,16 +163,20 @@ namespace Chess_Challenge.src.My_Bot
 
                 // Here we interpolate the midgame/endgame scores from the single variable to a proper integer that can be used by search
                 score = ((short)score * phase + (score + 0x8000 >> 16) * (24 - phase)) / 24;
+                //Console.WriteLine(score);
 
                 // Local method for similar calls to Search, inspired by Tyrant7's approach here: https://github.com/Tyrant7/Chess-Challenge
                 // We keep known values, but we create a local method that will be used to implement 3-fold PVS. More on that later on
-                int defaultSearch(int beta, int reduction = 1, bool nullAllowed = true) => score = -Search(ply + 1, depth - reduction, -beta, -alpha, nullAllowed);
+                int defaultSearch(Board board, int beta, int reduction = 1, bool nullAllowed = true) => score =
+                    board.getPlayerToMoveAtPly(ply) == board.getPlayerToMoveAtPly(ply + 1)
+                    ? Search(ply + 1, depth - reduction, alpha, beta, nullAllowed)
+                    : - Search(ply + 1, depth - reduction, -beta, -alpha, nullAllowed);
 
                 // Transposition table lookup
                 // Look up best move known so far if it is available
                 var (ttKey, ttMove, ttDepth, ttScore, ttFlag) = TT[key % 2097152];
 
-                if (ttKey == key)
+                if (ttKey == key && false)
                 {
                     // If conditions match, we can trust the table entry and return immediately.
                     // This is a token optimized way to express that: we can trust the score stored in TT and return immediately if:
@@ -182,8 +198,8 @@ namespace Chess_Challenge.src.My_Bot
                 // Internal iterative reductions
                 // If this is the first time we visit this node, it might not be worth searching it fully
                 // because it might be a random non-promising node. If it gets visited a second time, it's worth fully looking into.
-                else if (depth > 3)
-                    depth--;
+                //else if (depth > 3)
+                //    depth--;
 
                 // We look at if it's worth capturing further based on the static evaluation
                 if (inQsearch)
@@ -215,7 +231,7 @@ namespace Chess_Challenge.src.My_Bot
                     if (nullAllowed && score >= beta && depth > 2 && phase != 0)
                     {
                         board.ForceSkipTurn();
-                        defaultSearch(beta, 4 + depth / 6, false);
+                        defaultSearch(board, beta, 4 + depth / 6, false);
                         board.UndoSkipTurn();
                         if (score >= beta)
                             return beta;
@@ -232,6 +248,12 @@ namespace Chess_Challenge.src.My_Bot
 
                 ttFlag = 0; // Upper
 
+                Console.Write("Moves: ");
+                foreach (var move in moves)
+                {
+                    Console.Write(move + " ");
+                }
+                Console.WriteLine();
                 // Loop over each legal move
                 foreach (var move in moves)
                 {
@@ -239,7 +261,7 @@ namespace Chess_Challenge.src.My_Bot
 
                     // A quiet move traditionally means a move that doesn't cause a capture to be the best move,
                     // is not a promotion, and doesn't give check. For token savings we only consider captures.
-                    bool isQuiet = !move.IsCapture && !move.IsPromotion;
+                    bool isQuiet = !move.IsCapture && !move.IsPromotion; // TODO add not kingchecked 
 
                     // Principal variation search
                     // We trust that our move ordering is good enough to ensure the first move searched to be the best move most of the time,
@@ -254,15 +276,17 @@ namespace Chess_Challenge.src.My_Bot
 
                     if (inQsearch || movesEvaluated == 0 // No PVS for first move or qsearch
                     || (depth <= 2 || movesEvaluated <= 4 || !isQuiet // Conditions not to do LMR
-                    || defaultSearch(alpha + 1, 2 + depth / 8 + movesEvaluated / 16 + Convert.ToInt32(doPruning) - quietHistory[move.RawValue & 4095].CompareTo(0)) > alpha) // LMR search raised alpha
-                    && alpha < defaultSearch(alpha + 1) && score < beta) // Full depth search failed high
-                        defaultSearch(beta); // Do full window search
+                    || defaultSearch(board, alpha + 1, 2 + depth / 8 + movesEvaluated / 16 + Convert.ToInt32(doPruning) - quietHistory[move.RawValue & 4095].CompareTo(0)) > alpha) // LMR search raised alpha
+                    && alpha < defaultSearch(board, alpha + 1) && score < beta) // Full depth search failed high
+                        defaultSearch(board, beta); // Do full window search
+
+                    //Console.WriteLine($"Move: {move} Score: {score} Alpha: {alpha} Beta: {beta}");  
 
                     board.UndoMove(move);
 
                     // If we are out of time, stop searching
-                    if (depth > 2 && timer.MillisecondsElapsedThisTurn > allocatedTime)
-                        return bestScore;
+                    //if (depth > 2 && timer.MillisecondsElapsedThisTurn > allocatedTime)
+                    //    return bestScore;
 
                     // Count the number of moves we have evaluated for detecting mates and stalemates
                     movesEvaluated++;
@@ -317,7 +341,7 @@ namespace Chess_Challenge.src.My_Bot
                 // Checkmate / stalemate detection
                 // 1000000 = mate score
                 if (movesEvaluated == 0)
-                    return inQsearch ? bestScore : inCheck ? ply - 1_000_000 : 0;
+                    return inQsearch ? bestScore : (board.IsMyKingCaptured() || inCheck) ? ply - 1_100_000 : 0;
 
                 // Store the current position in the transposition table
                 TT[key % 2097152] = (key, ttMove, inQsearch ? 0 : depth, bestScore, ttFlag);
@@ -326,7 +350,7 @@ namespace Chess_Challenge.src.My_Bot
             }
 
             // Iterative deepening
-            for (; timer.MillisecondsElapsedThisTurn <= allocatedTime / 5 /* Soft time limit */; ++depth)
+            for (; timer.MillisecondsElapsedThisTurn <= allocatedTime / 9 /* Soft time limit */; ++depth)
                 // Aspiration windows
                 // Read more: https://www.chessprogramming.org/Aspiration_Windows
                 for (int window = 40; ;)
@@ -335,7 +359,9 @@ namespace Chess_Challenge.src.My_Bot
                         beta = score + window;
                     // Search with the current window
                     score = Search(0, depth, alpha, beta, false);
-                    Console.WriteLine($"{window} {depth} {score} {rootBestMove}");
+                    var whoseturn = board.getPlayerToMoveAtPly(board.PlyCount);
+                    var nextTurn = board.getPlayerToMoveAtPly(board.PlyCount + 1);
+                    Console.WriteLine($"{id} {window} {depth} {score} {rootBestMove} {whoseturn} {nextTurn}");
                     estimatedScore = score;
                     suggestedMove = rootBestMove;
 

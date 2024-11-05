@@ -125,7 +125,8 @@ namespace ChessChallenge.Application.APIHelpers
 
         void GenerateKingMoves(Span<API.Move> moves)
         {
-            ulong legalMask = ~(opponentAttackMap | friendlyPieces);
+            //ulong legalMask = ~(opponentAttackMap | friendlyPieces);
+            ulong legalMask = ~(friendlyPieces); // King can move to squares attacked by opponent
             ulong kingMoves = Bits.KingMoves[friendlyKingSquare] & legalMask & moveTypeMask;
             while (kingMoves != 0)
             {
@@ -157,6 +158,12 @@ namespace ChessChallenge.Application.APIHelpers
                     }
                 }
             }
+            Console.WriteLine("King moves: " + currMoveIndex + " at square "+ friendlyKingSquare);
+            for (int i = 0; i < currMoveIndex; i++)
+            {
+                Console.Write(moves[i].ToString() + " ");
+            }
+            Console.WriteLine();
         }
 
         void GenerateSlidingMoves(Span<API.Move> moves)
@@ -354,7 +361,7 @@ namespace ChessChallenge.Application.APIHelpers
             }
 
             // En passant
-            if (board.currentGameState.enPassantFile > 0)
+            if (board.currentGameState.enPassantFile > 0 && board.OpponentMovedPreviousPly)
             {
                 int epFileIndex = board.currentGameState.enPassantFile - 1;
                 int epRankIndex = board.IsWhiteToMove ? 5 : 2;

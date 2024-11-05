@@ -26,6 +26,10 @@
 
         public void AddPieceAtSquare(int square)
         {
+            if (numPieces >= occupiedSquares.Length)
+            {
+                throw new System.Exception("PieceList is full");
+            }
             occupiedSquares[numPieces] = square;
             map[square] = numPieces;
             numPieces++;

@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using ChessChallenge.API;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace ChessChallenge.Chess
 {
@@ -23,6 +26,8 @@ namespace ChessChallenge.Chess
         public int OpponentColour => IsWhiteToMove ? PieceHelper.Black : PieceHelper.White;
         public int MoveColourIndex => IsWhiteToMove ? WhiteIndex : BlackIndex;
         public int OpponentColourIndex => IsWhiteToMove ? BlackIndex : WhiteIndex;
+
+        public bool OpponentMovedPreviousPly => turnSequence[plyCount] != turnSequence[plyCount - 1];
 
         // Stores piece code for each square on the board
         public int[] Square;
@@ -57,6 +62,8 @@ namespace ChessChallenge.Chess
 
         Stack<GameState> gameStateHistory;
         public GameState currentGameState;
+
+        public List<bool> turnSequence;
 
         public List<Move> AllGameMoves;
         public string GameStartFen => StartPositionInfo.fen;
@@ -95,6 +102,16 @@ namespace ChessChallenge.Chess
             hasCachedInCheckValue = true;
 
             return cachedInCheckValue;
+        }
+
+        public bool IsOpponentKingCaptured()
+        {
+            return kings[OpponentColourIndex].Count == 0;
+        }
+
+        public bool IsMyKingCaptured()
+        {
+            return kings[MoveColourIndex].Count == 0;
         }
 
 
@@ -138,6 +155,7 @@ namespace ChessChallenge.Chess
             int newEnPassantFile = 0;
 
             // Update bitboard of moved piece (pawn promotion is a special case and is corrected later)
+            Console.WriteLine("MAKE move: " + move.ToString() + " Piecetype " + movedPieceType.ToString() + " ply="+plyCount);
             MovePiece(movedPiece, startSquare, targetSquare);
 
             // Handle captures
@@ -253,11 +271,11 @@ namespace ChessChallenge.Chess
                 newZobristKey ^= Zobrist.castlingRights[newCastlingRights]; // add new castling rights state
             }
 
-            // Change side to move
-            IsWhiteToMove = !IsWhiteToMove;
-
             plyCount++;
             int newFiftyMoveCounter = currentGameState.fiftyMoveCounter + 1;
+
+            // Change side to move
+            IsWhiteToMove = turnSequence[plyCount];
 
             // Update extra bitboards
             allPiecesBitboard = colourBitboards[WhiteIndex] | colourBitboards[BlackIndex];
@@ -289,9 +307,10 @@ namespace ChessChallenge.Chess
         public void UndoMove(Move move, bool inSearch = true)
         {
             // Swap colour to move
-            IsWhiteToMove = !IsWhiteToMove;
+            IsWhiteToMove = turnSequence[plyCount-1];
 
             bool undoingWhiteMove = IsWhiteToMove;
+
 
             // Get move info
             int movedFrom = move.StartSquareIndex;
@@ -318,13 +337,14 @@ namespace ChessChallenge.Chess
                 BitBoardUtility.ToggleSquare(ref pieceBitboards[promotedPiece], movedTo);
                 BitBoardUtility.ToggleSquare(ref pieceBitboards[pawnPiece], movedTo);
             }
-
+            Console.WriteLine("UNDO move: " + move.ToString() + " Piecetype "+ movedPieceType.ToString());
             MovePiece(movedPiece, movedTo, movedFrom);
 
             // Undo capture
             if (undoingCapture)
             {
                 int captureSquare = movedTo;
+                //TODO future bug: Take the color of the captured piece, in case of self capture this goes wrong!!
                 int capturedPiece = PieceHelper.MakePiece(capturedPieceType, OpponentColour);
 
                 if (undoingEnPassant)
@@ -347,6 +367,7 @@ namespace ChessChallenge.Chess
             // Update king
             if (movedPieceType is PieceHelper.King)
             {
+                Console.WriteLine("Undoing King move "+ undoingWhiteMove+" "+ MoveColourIndex);
                 KingSquare[MoveColourIndex] = movedFrom;
 
                 // Undo castling
@@ -388,9 +409,8 @@ namespace ChessChallenge.Chess
         // Switch side to play without making a move (NOTE: must not be in check when called)
         public void MakeNullMove()
         {
-            IsWhiteToMove = !IsWhiteToMove;
-
             plyCount++;
+            IsWhiteToMove = turnSequence[plyCount];
 
             ulong newZobristKey = currentGameState.zobristKey;
             newZobristKey ^= Zobrist.sideToMove;
@@ -407,8 +427,8 @@ namespace ChessChallenge.Chess
         public void UnmakeNullMove()
         {
 
-            IsWhiteToMove = !IsWhiteToMove;
             plyCount--;
+            IsWhiteToMove = turnSequence[plyCount];
             gameStateHistory.Pop();
             currentGameState = gameStateHistory.Peek();
             UpdateSliderBitboards();
@@ -502,6 +522,8 @@ namespace ChessChallenge.Chess
 
             // Side to move
             IsWhiteToMove = posInfo.whiteToMove;
+            //TODO We also need to store the turnSequence to be able to restore a game
+            Console.WriteLine("Proceed with caution, IsWhiteToMove is not properly set");
 
             // Set extra bitboards
             allPiecesBitboard = colourBitboards[WhiteIndex] | colourBitboards[BlackIndex];
@@ -580,7 +602,18 @@ namespace ChessChallenge.Chess
             pieceBitboards = new ulong[PieceHelper.MaxPieceIndex + 1];
             colourBitboards = new ulong[2];
             allPiecesBitboard = 0;
+
+            turnSequence = new List<bool>();
+            for (int i = 0; i < 640; i++)
+            {
+                turnSequence.Add(true);
+                turnSequence.Add(true); // Lol, white moves twice in a row
+                //turnSequence.Add(false);
+                turnSequence.Add(false);
+                
+            }
         }
+
 
     }
 }
