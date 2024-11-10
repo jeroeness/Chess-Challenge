@@ -110,7 +110,8 @@ namespace ChessChallenge.Chess
 
         void GenerateKingMoves(System.Span<Move> moves)
         {
-            ulong legalMask = ~(opponentAttackMap | friendlyPieces);
+            //ulong legalMask = ~(opponentAttackMap | friendlyPieces);
+            ulong legalMask = ~(friendlyPieces);
             ulong kingMoves = Bits.KingMoves[friendlyKingSquare] & legalMask & moveTypeMask;
             while (kingMoves != 0)
             {

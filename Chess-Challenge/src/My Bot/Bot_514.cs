@@ -42,11 +42,12 @@ namespace Chess_Challenge.src.My_Bot
         public override Move Think(Board board, Timer timer)
         {
             Console.WriteLine("Starting search...");
+            Console.WriteLine(board.IsWhiteToMove);
             // The move that will eventually be reported as our best move
             Move rootBestMove = default;
 
             // Intitialise parameters that exist only during one search
-            var (killers, allocatedTime, i, score, depth) = (new Move[256], timer.MillisecondsRemaining / 4, 0, 0, 1);
+            var (killers, allocatedTime, i, score, depth) = (new Move[256], timer.MillisecondsRemaining / 16, 0, 0, 1);
 
             // Decay quiet history instead of clearing it. 
             for (; i < 4096; quietHistory[i++] /= 8) ;
@@ -79,7 +80,12 @@ namespace Chess_Challenge.src.My_Bot
                 // Tempo is the idea that each move is benefitial to us, so we adjust the static eval using a fixed value.
                 // We use 15 tempo for evaluation for mid-game, 0 for end-game.
                 var pruning_eval = false; //alpha == beta - 1 && !inCheck
-                var (key, inQsearch, bestScore, doPruning, score, phase) = (board.ZobristKey, depth <= 0, -2_000_000, pruning_eval, 15, 0);
+                var key = board.ZobristKey;
+                var inQsearch = depth <= 0;
+                var bestScore = -2_000_000;
+                var doPruning = pruning_eval;
+                var score = 15;
+                var phase = 0;
 
                 // Here we do a static evaluation to determine the current static score for the position.
                 // A static evaluation is like a one-look determination of how good the position is, without looking into the future.
@@ -90,12 +96,10 @@ namespace Chess_Challenge.src.My_Bot
                 // More info about Texel tuning at https://www.chessprogramming.org/Texel%27s_Tuning_Method,
                 // and specifically the implementation in my tuner: https://github.com/AndyGrant/Ethereal/blob/master/Tuning.pdf
                 // The evaluation is inlined into search to preserve bytes, and to keep some information (phase) around for later use.
+
                 foreach (bool isWhite in new[] { !board.IsWhiteToMove, board.IsWhiteToMove })
                 {
                     score = -score;
-
-                    score += (2^15+ply) * BitboardHelper.GetNumberOfSetBits(board.GetPieceBitboard(PieceType.King, isWhite));
-
                     //       None (skipped)               King
                     for (var pieceIndex = 0; ++pieceIndex <= 6;)
                     {
@@ -163,14 +167,15 @@ namespace Chess_Challenge.src.My_Bot
 
                 // Here we interpolate the midgame/endgame scores from the single variable to a proper integer that can be used by search
                 score = ((short)score * phase + (score + 0x8000 >> 16) * (24 - phase)) / 24;
+                                
                 //Console.WriteLine(score);
 
                 // Local method for similar calls to Search, inspired by Tyrant7's approach here: https://github.com/Tyrant7/Chess-Challenge
                 // We keep known values, but we create a local method that will be used to implement 3-fold PVS. More on that later on
                 int defaultSearch(Board board, int beta, int reduction = 1, bool nullAllowed = true) => score =
-                    board.getPlayerToMoveAtPly(ply) == board.getPlayerToMoveAtPly(ply + 1)
-                    ? Search(ply + 1, depth - reduction, alpha, beta, nullAllowed)
-                    : - Search(ply + 1, depth - reduction, -beta, -alpha, nullAllowed);
+                    board.getPlayerToMoveAtPly(board.PlyCount) == board.getPlayerToMoveAtPly(board.PlyCount - 1)
+                    ? Search(ply + 1, depth - reduction, alpha, beta, nullAllowed) :
+                     - Search(ply + 1, depth - reduction, -beta, -alpha, nullAllowed);
 
                 // Transposition table lookup
                 // Look up best move known so far if it is available
@@ -239,21 +244,15 @@ namespace Chess_Challenge.src.My_Bot
                 }
 
                 // Move generation, best-known move then MVV-LVA ordering then killers then quiet move history
-                var (moves, quietsEvaluated, movesEvaluated) = (board.GetLegalMoves(inQsearch).OrderByDescending(move => move == ttMove ? 9_000_000_000_000_000_000
-                                                                                                                       : move.IsCapture ? 1_000_000_000_000_000_000 * (long)move.CapturePieceType - (long)move.MovePieceType
-                                                                                                                       : move == killers[ply] ? 500_000_000_000_000_000
-                                                                                                                       : quietHistory[move.RawValue & 4095]),
-                                                                new List<Move>(),
-                                                                0);
+                var moves= (board.GetLegalMoves(inQsearch).OrderByDescending(move => move == ttMove ? 9_000_000_000_000_000_000
+                                                                                                    : move.IsCapture ? 1_000_000_000_000_000_000 * (long)move.CapturePieceType - (long)move.MovePieceType
+                                                                                                    : move == killers[ply] ? 500_000_000_000_000_000
+                                                                                                    : quietHistory[move.RawValue & 4095]));
+                var quietsEvaluated = new List<Move>();
+                var movesEvaluated = 0;
 
                 ttFlag = 0; // Upper
 
-                Console.Write("Moves: ");
-                foreach (var move in moves)
-                {
-                    Console.Write(move + " ");
-                }
-                Console.WriteLine();
                 // Loop over each legal move
                 foreach (var move in moves)
                 {
@@ -261,7 +260,7 @@ namespace Chess_Challenge.src.My_Bot
 
                     // A quiet move traditionally means a move that doesn't cause a capture to be the best move,
                     // is not a promotion, and doesn't give check. For token savings we only consider captures.
-                    bool isQuiet = !move.IsCapture && !move.IsPromotion; // TODO add not kingchecked 
+                    bool isQuiet = !move.IsCapture && !move.IsPromotion && !board.IsInCheck();
 
                     // Principal variation search
                     // We trust that our move ordering is good enough to ensure the first move searched to be the best move most of the time,
@@ -280,9 +279,12 @@ namespace Chess_Challenge.src.My_Bot
                     && alpha < defaultSearch(board, alpha + 1) && score < beta) // Full depth search failed high
                         defaultSearch(board, beta); // Do full window search
 
-                    //Console.WriteLine($"Move: {move} Score: {score} Alpha: {alpha} Beta: {beta}");  
 
                     board.UndoMove(move);
+                    //if (!board.IsWhiteToMove && score < -100)
+                    //{
+                        //Console.WriteLine($"{board.PlyCount} Turn {board.IsWhiteToMove} {move} Score: {score} Depth: {depth}");
+                    //}
 
                     // If we are out of time, stop searching
                     //if (depth > 2 && timer.MillisecondsElapsedThisTurn > allocatedTime)
@@ -290,7 +292,6 @@ namespace Chess_Challenge.src.My_Bot
 
                     // Count the number of moves we have evaluated for detecting mates and stalemates
                     movesEvaluated++;
-
                     // If the move is better than our current best, update our best score
                     if (score > bestScore)
                     {
@@ -361,7 +362,7 @@ namespace Chess_Challenge.src.My_Bot
                     score = Search(0, depth, alpha, beta, false);
                     var whoseturn = board.getPlayerToMoveAtPly(board.PlyCount);
                     var nextTurn = board.getPlayerToMoveAtPly(board.PlyCount + 1);
-                    Console.WriteLine($"{id} {window} {depth} {score} {rootBestMove} {whoseturn} {nextTurn}");
+                    Console.WriteLine($"SEARCH {id} {window} {depth} {score} {alpha} {beta} {rootBestMove} {whoseturn} {nextTurn}");
                     estimatedScore = score;
                     suggestedMove = rootBestMove;
 

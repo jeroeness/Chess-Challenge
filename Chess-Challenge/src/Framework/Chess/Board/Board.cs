@@ -155,7 +155,6 @@ namespace ChessChallenge.Chess
             int newEnPassantFile = 0;
 
             // Update bitboard of moved piece (pawn promotion is a special case and is corrected later)
-            Console.WriteLine("MAKE move: " + move.ToString() + " Piecetype " + movedPieceType.ToString() + " ply="+plyCount);
             MovePiece(movedPiece, startSquare, targetSquare);
 
             // Handle captures
@@ -337,7 +336,6 @@ namespace ChessChallenge.Chess
                 BitBoardUtility.ToggleSquare(ref pieceBitboards[promotedPiece], movedTo);
                 BitBoardUtility.ToggleSquare(ref pieceBitboards[pawnPiece], movedTo);
             }
-            Console.WriteLine("UNDO move: " + move.ToString() + " Piecetype "+ movedPieceType.ToString());
             MovePiece(movedPiece, movedTo, movedFrom);
 
             // Undo capture
@@ -367,7 +365,6 @@ namespace ChessChallenge.Chess
             // Update king
             if (movedPieceType is PieceHelper.King)
             {
-                Console.WriteLine("Undoing King move "+ undoingWhiteMove+" "+ MoveColourIndex);
                 KingSquare[MoveColourIndex] = movedFrom;
 
                 // Undo castling
@@ -522,8 +519,15 @@ namespace ChessChallenge.Chess
 
             // Side to move
             IsWhiteToMove = posInfo.whiteToMove;
+
+            turnSequence = new List<bool>();
+            for (int i = 0; i < 640; i++)
+            {
+                turnSequence.Add(IsWhiteToMove);
+                turnSequence.Add(!IsWhiteToMove); // Lol, move twice in a row
+                turnSequence.Add(!IsWhiteToMove);
+            }
             //TODO We also need to store the turnSequence to be able to restore a game
-            Console.WriteLine("Proceed with caution, IsWhiteToMove is not properly set");
 
             // Set extra bitboards
             allPiecesBitboard = colourBitboards[WhiteIndex] | colourBitboards[BlackIndex];
@@ -603,15 +607,6 @@ namespace ChessChallenge.Chess
             colourBitboards = new ulong[2];
             allPiecesBitboard = 0;
 
-            turnSequence = new List<bool>();
-            for (int i = 0; i < 640; i++)
-            {
-                turnSequence.Add(true);
-                turnSequence.Add(true); // Lol, white moves twice in a row
-                //turnSequence.Add(false);
-                turnSequence.Add(false);
-                
-            }
         }
 
 

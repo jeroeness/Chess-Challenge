@@ -13,6 +13,7 @@ namespace ChessChallenge.Application
 
         double secondsElapsed;
         int baseTimeMS;
+        public int Id;
 
         public ChessPlayer(object instance, ChallengeController.PlayerType type, int baseTimeMS = int.MaxValue)
         {
@@ -20,6 +21,7 @@ namespace ChessChallenge.Application
             Bot = instance as ChessBot;
             Human = instance as HumanPlayer;
             this.baseTimeMS = baseTimeMS;
+            Id = new Random().Next();
 
         }
 

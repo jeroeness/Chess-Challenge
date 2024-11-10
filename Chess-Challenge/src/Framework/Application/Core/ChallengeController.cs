@@ -133,6 +133,7 @@ namespace ChessChallenge.Application
                 // Get bot move
                 if (threadID == gameID)
                 {
+                    Console.WriteLine(threadID + " threadid");
                     var move = GetBotMove();
 
                     if (threadID == gameID)
@@ -155,6 +156,7 @@ namespace ChessChallenge.Application
             try
             {
                 API.Timer timer = new(PlayerToMove.TimeRemainingMs, PlayerNotOnMove.TimeRemainingMs, GameDurationMilliseconds);
+                Console.WriteLine(PlayerToMove.Id);
                 API.Move move = PlayerToMove.Bot.Think(botBoard, timer);
                 return new Move(move.RawValue);
             }

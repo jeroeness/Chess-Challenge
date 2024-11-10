@@ -141,14 +141,15 @@ namespace ChessChallenge.Chess
                 bool isPawnOnSquare = board.Square[from.SquareIndex] == friendlyPawn;
                 if (from.IsValidSquare() && isPawnOnSquare)
                 {
-                    Move move = new Move(from.SquareIndex, epCaptureSquare, Move.EnPassantCaptureFlag);
-                    board.MakeMove(move);
-                    board.MakeNullMove();
-                    bool wasLegalMove = !board.CalculateInCheckState();
+                    //Move move = new Move(from.SquareIndex, epCaptureSquare, Move.EnPassantCaptureFlag);
+                    //board.MakeMove(move);
+                    //board.MakeNullMove();
+                    //bool wasLegalMove = !board.CalculateInCheckState();
 
-                    board.UnmakeNullMove();
-                    board.UndoMove(move);
-                    return wasLegalMove;
+                    //board.UnmakeNullMove();
+                    //board.UndoMove(move);
+                    //return wasLegalMove;
+                    return true; // We don't have test checks.
                 }
 
                 return false;
@@ -232,6 +233,7 @@ namespace ChessChallenge.Chess
 
             public PositionInfo(string fen)
             {
+                Console.WriteLine(fen);
                 this.fen = fen;
                 int[] squarePieces = new int[64];
 

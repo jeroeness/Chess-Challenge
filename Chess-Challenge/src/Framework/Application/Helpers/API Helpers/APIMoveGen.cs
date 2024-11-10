@@ -158,12 +158,6 @@ namespace ChessChallenge.Application.APIHelpers
                     }
                 }
             }
-            Console.WriteLine("King moves: " + currMoveIndex + " at square "+ friendlyKingSquare);
-            for (int i = 0; i < currMoveIndex; i++)
-            {
-                Console.Write(moves[i].ToString() + " ");
-            }
-            Console.WriteLine();
         }
 
         void GenerateSlidingMoves(Span<API.Move> moves)
@@ -175,11 +169,11 @@ namespace ChessChallenge.Application.APIHelpers
             ulong diagonalSliders = board.FriendlyDiagonalSliders;
 
             // Pinned pieces cannot move if king is in check
-            if (inCheck)
-            {
-                othogonalSliders &= ~pinRays;
-                diagonalSliders &= ~pinRays;
-            }
+            //if (inCheck)
+            //{
+            //    othogonalSliders &= ~pinRays;
+            //    diagonalSliders &= ~pinRays;
+            //}
 
             // Ortho
             while (othogonalSliders != 0)
@@ -368,7 +362,7 @@ namespace ChessChallenge.Application.APIHelpers
                 int targetSquare = epRankIndex * 8 + epFileIndex;
                 int capturedPawnSquare = targetSquare - pushOffset;
 
-                if (BitBoardUtility.ContainsSquare(checkRayBitmask, capturedPawnSquare))
+                if (BitBoardUtility.ContainsSquare(checkRayBitmask, capturedPawnSquare)) //TODO should this test be removed? It seems to constrain checks
                 {
                     ulong pawnsThatCanCaptureEp = pawns & BitBoardUtility.PawnAttacks(1ul << targetSquare, !board.IsWhiteToMove);
 
@@ -377,10 +371,10 @@ namespace ChessChallenge.Application.APIHelpers
                         int startSquare = BitBoardUtility.PopLSB(ref pawnsThatCanCaptureEp);
                         if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
                         {
-                            if (!InCheckAfterEnPassant(startSquare, targetSquare, capturedPawnSquare))
-                            {
-                                moves[currMoveIndex++] = CreateAPIMove(startSquare, targetSquare, Move.EnPassantCaptureFlag, PieceHelper.Pawn);
-                            }
+                            //if (!InCheckAfterEnPassant(startSquare, targetSquare, capturedPawnSquare))
+                            //{
+                            moves[currMoveIndex++] = CreateAPIMove(startSquare, targetSquare, Move.EnPassantCaptureFlag, PieceHelper.Pawn);
+                            //}
                         }
                     }
                 }
@@ -408,7 +402,8 @@ namespace ChessChallenge.Application.APIHelpers
 
         bool IsPinned(int square)
         {
-            return ((pinRays >> square) & 1) != 0;
+            //return ((pinRays >> square) & 1) != 0;
+            return false; // We can always move pawns that are pinned
         }
 
         void GenSlidingAttackMap()
@@ -503,19 +498,19 @@ namespace ChessChallenge.Application.APIHelpers
                                 }
                                 break;
                             }
-                            else
-                            {
-                                // This enemy piece is not able to move in the current direction, and so is blocking any checks/pins
-                                break;
-                            }
+                            //else
+                            //{
+                            //    // This enemy piece is not able to move in the current direction, and so is blocking any checks/pins
+                            //    break;
+                            //}
                         }
                     }
                 }
                 // Stop searching for pins if in double check, as the king is the only piece able to move in that case anyway
-                if (inDoubleCheck)
-                {
-                    break;
-                }
+                //if (inDoubleCheck)
+                //{
+                //    break;
+                //}
             }
 
             notPinRays = ~pinRays;

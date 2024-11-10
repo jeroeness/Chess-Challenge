@@ -35,9 +35,9 @@ namespace Chess_Challenge_Test
             UpdateCamera(screenWidth, screenHeight);
 
             ChallengeController controller = new();
-            controller.StartNewGame(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.MyBot, "8/8/8/8/8/4k3/q7/nn2K3 b - - 0 1");
+            controller.StartNewGame(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.MyBot, "8/8/8/8/8/4k3/q7/nn2K3 w - - 0 1");
 
-            while (!Raylib.WindowShouldClose() && !controller.board.IsWhiteToMove)
+            while (!Raylib.WindowShouldClose() && controller.board.AllGameMoves.Count < 3)
             {
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(new Color(22, 22, 22, 255));
@@ -55,6 +55,7 @@ namespace Chess_Challenge_Test
 
             Raylib.CloseWindow();
 
+            Console.WriteLine(controller.board.AllGameMoves.Last()+" "+ controller.board.AllGameMoves.Count);
             Assert.IsTrue(ChessChallenge.Chess.Move.SameMove(new ChessChallenge.Chess.Move(8,12), controller.board.AllGameMoves.Last()));
         }
     }
