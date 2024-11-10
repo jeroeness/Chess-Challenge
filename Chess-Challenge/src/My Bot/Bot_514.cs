@@ -59,7 +59,7 @@ namespace Chess_Challenge.src.My_Bot
                 // There is no need to check for 3-fold repetition, if a single repetition (0 = draw) ends up being the best,
                 // we can trust that repeating moves is the best course of action in this position.
                 if (nullAllowed && board.IsRepeatedPosition())
-                    return 0;
+                    return beta;
 
                 // Check extension: if we are in check, we should search deeper. More info: https://www.chessprogramming.org/Check_Extensions
                 bool inCheck = board.IsInCheck();
@@ -79,7 +79,7 @@ namespace Chess_Challenge.src.My_Bot
                 // -2000000 = -inf. It just indicates "no move has been found yet".
                 // Tempo is the idea that each move is benefitial to us, so we adjust the static eval using a fixed value.
                 // We use 15 tempo for evaluation for mid-game, 0 for end-game.
-                var pruning_eval = false; //alpha == beta - 1 && !inCheck
+                var pruning_eval = alpha == beta - 1 && !inCheck;
                 var key = board.ZobristKey;
                 var inQsearch = depth <= 0;
                 var bestScore = -2_000_000;
@@ -283,12 +283,12 @@ namespace Chess_Challenge.src.My_Bot
                     board.UndoMove(move);
                     //if (!board.IsWhiteToMove && score < -100)
                     //{
-                        //Console.WriteLine($"{board.PlyCount} Turn {board.IsWhiteToMove} {move} Score: {score} Depth: {depth}");
+                    //Console.WriteLine($"{board.PlyCount} Turn {board.IsWhiteToMove} {move} Score: {score} Depth: {depth}");
                     //}
 
                     // If we are out of time, stop searching
-                    //if (depth > 2 && timer.MillisecondsElapsedThisTurn > allocatedTime)
-                    //    return bestScore;
+                    if (depth > 2 && timer.MillisecondsElapsedThisTurn > allocatedTime)
+                        return bestScore;
 
                     // Count the number of moves we have evaluated for detecting mates and stalemates
                     movesEvaluated++;
@@ -345,7 +345,7 @@ namespace Chess_Challenge.src.My_Bot
                     return inQsearch ? bestScore : (board.IsMyKingCaptured() || inCheck) ? ply - 1_100_000 : 0;
 
                 // Store the current position in the transposition table
-                TT[key % 2097152] = (key, ttMove, inQsearch ? 0 : depth, bestScore, ttFlag);
+                //TT[key % 2097152] = (key, ttMove, inQsearch ? 0 : depth, bestScore, ttFlag);
 
                 return bestScore;
             }

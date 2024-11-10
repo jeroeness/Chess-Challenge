@@ -63,12 +63,12 @@ namespace ChessChallenge.Application.APIHelpers
             GenerateKingMoves(moves);
 
             // Only king moves are valid in a double check position, so can return early.
-            if (!inDoubleCheck)
-            {
-                GenerateSlidingMoves(moves);
-                GenerateKnightMoves(moves);
-                GeneratePawnMoves(moves);
-            }
+            //if (!inDoubleCheck)
+            //{
+            GenerateSlidingMoves(moves);
+            GenerateKnightMoves(moves);
+            GeneratePawnMoves(moves);
+            //}
 
             moves = moves.Slice(0, currMoveIndex);
         }

@@ -74,10 +74,11 @@ namespace ChessChallenge.Application
             botMatchStartFens = FileHelper.ReadResourceFile("Fens.txt").Split('\n').Where(fen => fen.Length > 0).ToArray();
             botTaskWaitHandle = new AutoResetEvent(false);
 
+
             StartNewGame(PlayerType.Human, PlayerType.MyBot);
         }
 
-        public void StartNewGame(PlayerType whiteType, PlayerType blackType, String fen = "")
+        public void StartNewGame(PlayerType whiteType, PlayerType blackType, String fen = "rnbqkbnr/pppppppp/8/8/8/8/2PPPP2/4K3 w HAkq - 0 1")
         {
             // End any ongoing game
             EndGame(GameResult.DrawByArbiter, log: false, autoStartNextBotMatch: false);

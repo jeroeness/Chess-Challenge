@@ -524,7 +524,7 @@ namespace ChessChallenge.Chess
             for (int i = 0; i < 640; i++)
             {
                 turnSequence.Add(IsWhiteToMove);
-                turnSequence.Add(!IsWhiteToMove); // Lol, move twice in a row
+                turnSequence.Add(IsWhiteToMove); // Lol, move twice in a row
                 turnSequence.Add(!IsWhiteToMove);
             }
             //TODO We also need to store the turnSequence to be able to restore a game

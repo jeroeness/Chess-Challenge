@@ -22,8 +22,45 @@ namespace Chess_Challenge_Test
             cam.zoom = screenWidth / 1280f * 0.7f;
         }
 
+        //[Test]
+        //public void Test1()
+        //{
+        //    Vector2 loadedWindowSize = Settings.ScreenSizeSmall;
+        //    int screenWidth = (int)loadedWindowSize.X;
+        //    int screenHeight = (int)loadedWindowSize.Y;
+
+        //    Raylib.InitWindow(screenWidth, screenHeight, "Chess Coding Challenge");
+        //    Raylib.SetTargetFPS(60);
+
+        //    UpdateCamera(screenWidth, screenHeight);
+
+        //    ChallengeController controller = new();
+        //    controller.StartNewGame(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.MyBot, "8/8/8/8/8/4k3/q7/nn2K3 w - - 0 1");
+
+        //    while (!Raylib.WindowShouldClose() && controller.board.AllGameMoves.Count < 3)
+        //    {
+        //        Raylib.BeginDrawing();
+        //        Raylib.ClearBackground(new Color(22, 22, 22, 255));
+        //        Raylib.BeginMode2D(cam);
+
+        //        controller.Update();
+        //        controller.Draw();
+
+        //        Raylib.EndMode2D();
+
+        //        controller.DrawOverlay();
+
+        //        Raylib.EndDrawing();
+        //    }
+
+        //    Raylib.CloseWindow();
+
+        //    Console.WriteLine(controller.board.AllGameMoves.Last()+" "+ controller.board.AllGameMoves.Count);
+        //    Assert.IsTrue(ChessChallenge.Chess.Move.SameMove(new ChessChallenge.Chess.Move(8,12), controller.board.AllGameMoves.Last()));
+        //}
+
         [Test]
-        public void Test1()
+        public void Test2()
         {
             Vector2 loadedWindowSize = Settings.ScreenSizeSmall;
             int screenWidth = (int)loadedWindowSize.X;
@@ -35,7 +72,7 @@ namespace Chess_Challenge_Test
             UpdateCamera(screenWidth, screenHeight);
 
             ChallengeController controller = new();
-            controller.StartNewGame(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.MyBot, "8/8/8/8/8/4k3/q7/nn2K3 w - - 0 1");
+            controller.StartNewGame(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.MyBot, "rnb1kbnr/ppp2ppp/3qP3/8/8/6K1/8/8 w kq - 0 1");
 
             while (!Raylib.WindowShouldClose() && controller.board.AllGameMoves.Count < 3)
             {
@@ -55,8 +92,9 @@ namespace Chess_Challenge_Test
 
             Raylib.CloseWindow();
 
-            Console.WriteLine(controller.board.AllGameMoves.Last()+" "+ controller.board.AllGameMoves.Count);
-            Assert.IsTrue(ChessChallenge.Chess.Move.SameMove(new ChessChallenge.Chess.Move(8,12), controller.board.AllGameMoves.Last()));
+            Console.WriteLine(controller.board.AllGameMoves.Last() + " " + controller.board.AllGameMoves.Count);
+            Assert.IsTrue(ChessChallenge.Chess.Move.SameMove(new ChessChallenge.Chess.Move(8, 12), controller.board.AllGameMoves.Last()));
+            
         }
     }
 }
