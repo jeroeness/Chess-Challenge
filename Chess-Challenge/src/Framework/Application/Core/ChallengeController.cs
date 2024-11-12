@@ -411,10 +411,19 @@ namespace ChessChallenge.Application
             int boardStartX = -BoardUI.squareSize * 4;
             int boardStartY = -BoardUI.squareSize * 4;
             int w = 12;
-            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w, w * 3, 8 * BoardUI.squareSize + w * 2, Color.WHITE);
-            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w, w * 3, (8 * BoardUI.squareSize + w * 2) / 2 + estimatedScore, Color.BLACK);
             float estimatedScoreFloat = (float)estimatedScore / -100.0f;
-            UIHelper.DrawText($"{estimatedScoreFloat:0.0}", new Vector2(boardStartX - w * 2.5f, boardStartY + (8 * BoardUI.squareSize + w * 2) / 2 + estimatedScore - 25), 30, 0, Color.WHITE, UIHelper.AlignH.Centre);
+            float bar_y = estimatedScoreFloat;
+            if (bar_y > 0f)
+            {
+                bar_y = (float) Math.Sqrt(bar_y)*100;
+            } else
+            {
+                bar_y = -(float)Math.Sqrt(-bar_y) * 100;
+            }
+            bar_y = -Math.Clamp(bar_y, -(4 * BoardUI.squareSize + w), (4 * BoardUI.squareSize + w));
+            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w, w * 3, 8 * BoardUI.squareSize + w * 2, Color.WHITE);
+            Raylib.DrawRectangle(boardStartX - w * 4, boardStartY - w, w * 3, (8 * BoardUI.squareSize + w * 2) / 2 + (int)bar_y, Color.BLACK);
+            UIHelper.DrawText($"{estimatedScoreFloat:0.0}", new Vector2(boardStartX - w * 2.5f, boardStartY + (8 * BoardUI.squareSize + w * 2) / 2 + bar_y - 25), 30, 0, Color.WHITE, UIHelper.AlignH.Centre);
         }
 
         public void DrawOverlay()

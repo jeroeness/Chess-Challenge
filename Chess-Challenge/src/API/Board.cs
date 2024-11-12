@@ -159,7 +159,7 @@ namespace ChessChallenge.API
                 Span<Move> moveSpan = movesDest.AsSpan();
                 moveGen.GenerateMoves(ref moveSpan, board, includeQuietMoves: true);
                 cachedLegalMoves = moveSpan.ToArray();
-                hasCachedMoves = false; // TODO disable this speedup due to bug
+                hasCachedMoves = true;
 			}
 
 			return cachedLegalMoves;

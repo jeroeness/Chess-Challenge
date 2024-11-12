@@ -167,7 +167,8 @@ namespace Chess_Challenge.src.My_Bot
 
                 // Here we interpolate the midgame/endgame scores from the single variable to a proper integer that can be used by search
                 score = ((short)score * phase + (score + 0x8000 >> 16) * (24 - phase)) / 24;
-                                
+
+
                 //Console.WriteLine(score);
 
                 // Local method for similar calls to Search, inspired by Tyrant7's approach here: https://github.com/Tyrant7/Chess-Challenge
@@ -344,8 +345,10 @@ namespace Chess_Challenge.src.My_Bot
                 if (movesEvaluated == 0)
                     return inQsearch ? bestScore : (board.IsMyKingCaptured() || inCheck) ? ply - 1_100_000 : 0;
 
-                // Store the current position in the transposition table
-                //TT[key % 2097152] = (key, ttMove, inQsearch ? 0 : depth, bestScore, ttFlag);
+                // Jeroen: Only store when we switch players
+                if (board.getPlayerToMoveAtPly(board.PlyCount) != board.getPlayerToMoveAtPly(board.PlyCount + 1))
+                    // Store the current position in the transposition table
+                    TT[key % 2097152] = (key, ttMove, inQsearch ? 0 : depth, bestScore, ttFlag);
 
                 return bestScore;
             }

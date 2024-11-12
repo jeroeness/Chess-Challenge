@@ -24,7 +24,7 @@ namespace ChessChallenge.Chess
 
         // If in check, this bitboard contains squares in line from checking piece up to king
         // If not in check, all bits are set to 1
-        ulong checkRayBitmask;
+        //ulong checkRayBitmask;
 
         ulong pinRays;
         ulong notPinRays;
@@ -64,12 +64,12 @@ namespace ChessChallenge.Chess
             GenerateKingMoves(moves);
 
             // Only king moves are valid in a double check position, so can return early.
-            if (!inDoubleCheck)
-            {
-                GenerateSlidingMoves(moves);
-                GenerateKnightMoves(moves);
-                GeneratePawnMoves(moves);
-            }
+            //if (!inDoubleCheck)
+            //{
+            GenerateSlidingMoves(moves);
+            GenerateKnightMoves(moves);
+            GeneratePawnMoves(moves);
+            //}
 
             return moves.Slice(0, currMoveIndex);
         }
@@ -86,7 +86,7 @@ namespace ChessChallenge.Chess
             currMoveIndex = 0;
             inCheck = false;
             inDoubleCheck = false;
-            checkRayBitmask = 0;
+            //checkRayBitmask = 0;
             pinRays = 0;
 
             // Store some info for convenience
@@ -148,7 +148,7 @@ namespace ChessChallenge.Chess
         void GenerateSlidingMoves(System.Span<Move> moves)
         {
             // Limit movement to empty or enemy squares, and must block check if king is in check.
-            ulong moveMask = emptyOrEnemySquares & checkRayBitmask & moveTypeMask;
+            ulong moveMask = emptyOrEnemySquares & moveTypeMask;
 
             ulong othogonalSliders = board.FriendlyOrthogonalSliders;
             ulong diagonalSliders = board.FriendlyDiagonalSliders;
@@ -167,10 +167,10 @@ namespace ChessChallenge.Chess
                 ulong moveSquares = Magic.GetRookAttacks(startSquare, allPieces) & moveMask;
 
                 // If piece is pinned, it can only move along the pin ray
-                if (IsPinned(startSquare))
-                {
-                    moveSquares &= alignMask[startSquare, friendlyKingSquare];
-                }
+                //if (IsPinned(startSquare))
+                //{
+                //    moveSquares &= alignMask[startSquare, friendlyKingSquare];
+                //}
 
                 while (moveSquares != 0)
                 {
@@ -186,10 +186,10 @@ namespace ChessChallenge.Chess
                 ulong moveSquares = Magic.GetBishopAttacks(startSquare, allPieces) & moveMask;
 
                 // If piece is pinned, it can only move along the pin ray
-                if (IsPinned(startSquare))
-                {
-                    moveSquares &= alignMask[startSquare, friendlyKingSquare];
-                }
+                //if (IsPinned(startSquare))
+                //{
+                //    moveSquares &= alignMask[startSquare, friendlyKingSquare];
+                //}
 
                 while (moveSquares != 0)
                 {
@@ -205,7 +205,7 @@ namespace ChessChallenge.Chess
             int friendlyKnightPiece = PieceHelper.MakePiece(PieceHelper.Knight, board.MoveColour);
             // bitboard of all non-pinned knights
             ulong knights = board.pieceBitboards[friendlyKnightPiece] & notPinRays;
-            ulong moveMask = emptyOrEnemySquares & checkRayBitmask & moveTypeMask;
+            ulong moveMask = emptyOrEnemySquares &  moveTypeMask;
 
             while (knights != 0)
             {
@@ -232,7 +232,7 @@ namespace ChessChallenge.Chess
 
             ulong singlePush = (BitBoardUtility.Shift(pawns, pushOffset)) & emptySquares;
 
-            ulong pushPromotions = singlePush & promotionRankMask & checkRayBitmask;
+            ulong pushPromotions = singlePush & promotionRankMask;
 
 
             ulong captureEdgeFileMask = board.IsWhiteToMove ? Bits.NotAFile : Bits.NotHFile;
@@ -240,13 +240,13 @@ namespace ChessChallenge.Chess
             ulong captureA = BitBoardUtility.Shift(pawns & captureEdgeFileMask, pushDir * 7) & enemyPieces;
             ulong captureB = BitBoardUtility.Shift(pawns & captureEdgeFileMask2, pushDir * 9) & enemyPieces;
 
-            ulong singlePushNoPromotions = singlePush & ~promotionRankMask & checkRayBitmask;
+            ulong singlePushNoPromotions = singlePush & ~promotionRankMask;
 
-            ulong capturePromotionsA = captureA & promotionRankMask & checkRayBitmask;
-            ulong capturePromotionsB = captureB & promotionRankMask & checkRayBitmask;
+            ulong capturePromotionsA = captureA & promotionRankMask;
+            ulong capturePromotionsB = captureB & promotionRankMask;
 
-            captureA &= checkRayBitmask & ~promotionRankMask;
-            captureB &= checkRayBitmask & ~promotionRankMask;
+            captureA &= ~promotionRankMask;
+            captureB &= ~promotionRankMask;
 
             // Single / double push
             if (generateQuietMoves)
@@ -256,24 +256,24 @@ namespace ChessChallenge.Chess
                 {
                     int targetSquare = BitBoardUtility.PopLSB(ref singlePushNoPromotions);
                     int startSquare = targetSquare - pushOffset;
-                    if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
-                    {
+                    //if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
+                    //{
                         moves[currMoveIndex++] = new Move(startSquare, targetSquare);
-                    }
+                    //}
                 }
 
                 // Generate double pawn pushes
                 ulong doublePushTargetRankMask = board.IsWhiteToMove ? Bits.Rank4 : Bits.Rank5;
-                ulong doublePush = BitBoardUtility.Shift(singlePush, pushOffset) & emptySquares & doublePushTargetRankMask & checkRayBitmask;
+                ulong doublePush = BitBoardUtility.Shift(singlePush, pushOffset) & emptySquares & doublePushTargetRankMask;
 
                 while (doublePush != 0)
                 {
                     int targetSquare = BitBoardUtility.PopLSB(ref doublePush);
                     int startSquare = targetSquare - pushOffset * 2;
-                    if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
-                    {
+                    //if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
+                    //{
                         moves[currMoveIndex++] = new Move(startSquare, targetSquare, Move.PawnTwoUpFlag);
-                    }
+                    //}
                 }
             }
 
@@ -283,10 +283,10 @@ namespace ChessChallenge.Chess
                 int targetSquare = BitBoardUtility.PopLSB(ref captureA);
                 int startSquare = targetSquare - pushDir * 7;
 
-                if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
-                {
+                //if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
+                //{
                     moves[currMoveIndex++] = new Move(startSquare, targetSquare);
-                }
+                //}
             }
 
             while (captureB != 0)
@@ -294,10 +294,10 @@ namespace ChessChallenge.Chess
                 int targetSquare = BitBoardUtility.PopLSB(ref captureB);
                 int startSquare = targetSquare - pushDir * 9;
 
-                if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
-                {
+                //if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
+                //{
                     moves[currMoveIndex++] = new Move(startSquare, targetSquare);
-                }
+                //}
             }
 
 
@@ -307,10 +307,10 @@ namespace ChessChallenge.Chess
             {
                 int targetSquare = BitBoardUtility.PopLSB(ref pushPromotions);
                 int startSquare = targetSquare - pushOffset;
-                if (!IsPinned(startSquare))
-                {
+                //if (!IsPinned(startSquare))
+                //{
                     GeneratePromotions(startSquare, targetSquare, moves);
-                }
+                //}
             }
 
 
@@ -319,10 +319,10 @@ namespace ChessChallenge.Chess
                 int targetSquare = BitBoardUtility.PopLSB(ref capturePromotionsA);
                 int startSquare = targetSquare - pushDir * 7;
 
-                if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
-                {
+                //if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
+                //{
                     GeneratePromotions(startSquare, targetSquare, moves);
-                }
+                //}
             }
 
             while (capturePromotionsB != 0)
@@ -330,10 +330,10 @@ namespace ChessChallenge.Chess
                 int targetSquare = BitBoardUtility.PopLSB(ref capturePromotionsB);
                 int startSquare = targetSquare - pushDir * 9;
 
-                if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
-                {
+                //if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
+                //{
                     GeneratePromotions(startSquare, targetSquare, moves);
-                }
+                //}
             }
 
             // En passant
@@ -344,22 +344,22 @@ namespace ChessChallenge.Chess
                 int targetSquare = epRankIndex * 8 + epFileIndex;
                 int capturedPawnSquare = targetSquare - pushOffset;
 
-                if (BitBoardUtility.ContainsSquare(checkRayBitmask, capturedPawnSquare))
-                {
+                //if (BitBoardUtility.ContainsSquare(checkRayBitmask, capturedPawnSquare))
+                //{
                     ulong pawnsThatCanCaptureEp = pawns & BitBoardUtility.PawnAttacks(1ul << targetSquare, !board.IsWhiteToMove);
 
                     while (pawnsThatCanCaptureEp != 0)
                     {
                         int startSquare = BitBoardUtility.PopLSB(ref pawnsThatCanCaptureEp);
-                        if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
-                        {
-                            if (!InCheckAfterEnPassant(startSquare, targetSquare, capturedPawnSquare))
-                            {
+                        //if (!IsPinned(startSquare) || alignMask[startSquare, friendlyKingSquare] == alignMask[targetSquare, friendlyKingSquare])
+                        //{
+                            //if (!InCheckAfterEnPassant(startSquare, targetSquare, capturedPawnSquare))
+                            //{
                                 moves[currMoveIndex++] = new Move(startSquare, targetSquare, Move.EnPassantCaptureFlag);
-                            }
-                        }
+                            //}
+                        //}
                     }
-                }
+                //}
             }
         }
 
@@ -384,7 +384,8 @@ namespace ChessChallenge.Chess
 
         bool IsPinned(int square)
         {
-            return ((pinRays >> square) & 1) != 0;
+            return false;
+            //return ((pinRays >> square) & 1) != 0;
         }
 
         void GenSlidingAttackMap()
@@ -473,7 +474,7 @@ namespace ChessChallenge.Chess
                                 // No friendly piece blocking the attack, so this is a check
                                 else
                                 {
-                                    checkRayBitmask |= rayMask;
+                                    //checkRayBitmask |= rayMask;
                                     inDoubleCheck = inCheck; // if already in check, then this is double check
                                     inCheck = true;
                                 }
@@ -510,7 +511,7 @@ namespace ChessChallenge.Chess
                 {
                     inDoubleCheck = inCheck;
                     inCheck = true;
-                    checkRayBitmask |= 1ul << knightSquare;
+                    //checkRayBitmask |= 1ul << knightSquare;
                 }
             }
 
@@ -526,7 +527,7 @@ namespace ChessChallenge.Chess
                 inCheck = true;
                 ulong possiblePawnAttackOrigins = board.IsWhiteToMove ? Bits.WhitePawnAttacks[friendlyKingSquare] : Bits.BlackPawnAttacks[friendlyKingSquare];
                 ulong pawnCheckMap = opponentPawnsBoard & possiblePawnAttackOrigins;
-                checkRayBitmask |= pawnCheckMap;
+                //checkRayBitmask |= pawnCheckMap;
             }
 
             int enemyKingSquare = board.KingSquare[enemyIndex];
@@ -534,10 +535,10 @@ namespace ChessChallenge.Chess
             opponentAttackMapNoPawns = opponentSlidingAttackMap | opponentKnightAttacks | Bits.KingMoves[enemyKingSquare];
             opponentAttackMap = opponentAttackMapNoPawns | opponentPawnAttackMap;
 
-            if (!inCheck)
-            {
-                checkRayBitmask = ulong.MaxValue;
-            }
+            //if (!inCheck)
+            //{
+            //    checkRayBitmask = ulong.MaxValue;
+            //}
         }
 
         // Test if capturing a pawn with en-passant reveals a sliding piece attack against the king

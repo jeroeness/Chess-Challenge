@@ -7,7 +7,7 @@
     {
 
 
-        public static readonly ulong[,] alignMask;
+        //public static readonly ulong[,] alignMask;
         public static readonly ulong[,] dirRayMask;
 
         // First 4 are orthogonal, last 4 are diagonals (N, S, W, E, NW, SE, NE, SW)
@@ -254,27 +254,27 @@
                 }
             }
 
-            alignMask = new ulong[64, 64];
-            for (int squareA = 0; squareA < 64; squareA++)
-            {
-                for (int squareB = 0; squareB < 64; squareB++)
-                {
-                    Coord cA = BoardHelper.CoordFromIndex(squareA);
-                    Coord cB = BoardHelper.CoordFromIndex(squareB);
-                    Coord delta = cB - cA;
-                    Coord dir = new Coord(System.Math.Sign(delta.fileIndex), System.Math.Sign(delta.rankIndex));
-                    //Coord dirOffset = dirOffsets2D[dirIndex];
+            //alignMask = new ulong[64, 64];
+            //for (int squareA = 0; squareA < 64; squareA++)
+            //{
+            //    for (int squareB = 0; squareB < 64; squareB++)
+            //    {
+            //        Coord cA = BoardHelper.CoordFromIndex(squareA);
+            //        Coord cB = BoardHelper.CoordFromIndex(squareB);
+            //        Coord delta = cB - cA;
+            //        Coord dir = new Coord(System.Math.Sign(delta.fileIndex), System.Math.Sign(delta.rankIndex));
+            //        //Coord dirOffset = dirOffsets2D[dirIndex];
 
-                    for (int i = -8; i < 8; i++)
-                    {
-                        Coord coord = BoardHelper.CoordFromIndex(squareA) + dir * i;
-                        if (coord.IsValidSquare())
-                        {
-                            alignMask[squareA, squareB] |= 1ul << (BoardHelper.IndexFromCoord(coord));
-                        }
-                    }
-                }
-            }
+            //        for (int i = -8; i < 8; i++)
+            //        {
+            //            Coord coord = BoardHelper.CoordFromIndex(squareA) + dir * i;
+            //            if (coord.IsValidSquare())
+            //            {
+            //                alignMask[squareA, squareB] |= 1ul << (BoardHelper.IndexFromCoord(coord));
+            //            }
+            //        }
+            //    }
+            //}
 
 
             dirRayMask = new ulong[8, 64];
